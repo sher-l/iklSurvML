@@ -509,8 +509,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
       set.seed(seed)
       fit = cv.glmnet(x1, x2,
                       nfold = 10, #10-fold cross-validation
-                      family = "cox", alpha = 1,
-                      type.measure = "class")
+                      family = "cox", alpha = 1
+                      )
       rs <- lapply(val_dd_list2, function(x){cbind(x[, 1:2], RS = as.numeric(predict(fit, type = 'response', newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))})
 
       cc <- data.frame(Cindex = sapply(rs, function(x){as.numeric(summary(coxph(Surv(OS.time, OS) ~ RS, x))$concordance[1])})) %>%
@@ -598,8 +598,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
 
       fit = cv.glmnet(x1, x2,
                       nfold=10, #10-fold cross-validation
-                      family = "cox", alpha = 0,
-                      type.measure = "class")
+                      family = "cox", alpha = 0
+                      )
       rs <- lapply(val_dd_list2, function(x){cbind(x[, 1:2], RS = as.numeric(predict(fit, type = 'response', newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))})
       cc <- data.frame(Cindex = sapply(rs, function(x){as.numeric(summary(coxph(Surv(OS.time, OS) ~ RS, x))$concordance[1])})) %>%
         rownames_to_column('ID')
@@ -911,8 +911,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
           set.seed(seed)
           fit = cv.glmnet(x1, x2,
                           nfold=10, #10-fold cross-validation
-                          family = "cox", alpha = 1,
-                          type.measure = "class")
+                          family = "cox", alpha = 1
+                          )
           rs <- lapply(val_dd_list2, function(x){cbind(x[,1:2], RS = as.numeric(predict(fit, type = 'response', newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))})
           cc <- data.frame(Cindex = sapply(rs, function(x){as.numeric(summary(coxph(Surv(OS.time, OS) ~ RS, x))$concordance[1])})) %>%
             rownames_to_column('ID')
@@ -950,8 +950,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
           set.seed(seed)
           fit = cv.glmnet(x1, x2,
                           nfold = 10, #-fold cross-validation
-                          family = "cox", alpha = 0,
-                          type.measure = "class")
+                          family = "cox", alpha = 0
+                          )
           rs <- lapply(val_dd_list2, function(x){cbind(x[,1:2], RS = as.numeric(predict(fit, type = 'response', newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))})
           cc <- data.frame(Cindex = sapply(rs, function(x){as.numeric(summary(coxph(Surv(OS.time, OS) ~ RS, x))$concordance[1])})) %>%
             rownames_to_column('ID')
@@ -1147,8 +1147,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
           set.seed(seed)
           fit = cv.glmnet(x1, x2,
                           nfold=10, #10-fold cross-validation
-                          family = "cox", alpha = 1,
-                          type.measure = "class")
+                          family = "cox", alpha = 1
+                          )
           rs <- lapply(val_dd_list2, function(x){cbind(x[,1:2], RS = as.numeric(predict(fit, type = 'response', newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))})
           cc <- data.frame(Cindex = sapply(rs, function(x){as.numeric(summary(coxph(Surv(OS.time, OS) ~ RS, x))$concordance[1])})) %>%
             rownames_to_column('ID')
@@ -1186,8 +1186,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
           set.seed(seed)
           fit = cv.glmnet(x1, x2,
                           nfold = 10, #-fold cross-validation
-                          family = "cox", alpha = 0,
-                          type.measure = "class")
+                          family = "cox", alpha = 0
+                          )
           rs <- lapply(val_dd_list2, function(x){cbind(x[,1:2], RS = as.numeric(predict(fit, type = 'response', newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))})
           cc <- data.frame(Cindex = sapply(rs, function(x){as.numeric(summary(coxph(Surv(OS.time, OS) ~ RS, x))$concordance[1])})) %>%
             rownames_to_column('ID')
@@ -1382,8 +1382,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
           set.seed(seed)
           fit = cv.glmnet(x1, x2,
                           nfold=10, #10-fold cross-validation
-                          family = "cox", alpha = 1,
-                          type.measure = "class")
+                          family = "cox", alpha = 1
+                          )
           rs <- lapply(val_dd_list2, function(x){cbind(x[,1:2], RS = as.numeric(predict(fit, type = 'response', newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))})
           cc <- data.frame(Cindex = sapply(rs, function(x){as.numeric(summary(coxph(Surv(OS.time, OS) ~ RS, x))$concordance[1])})) %>%
             rownames_to_column('ID')
@@ -1421,8 +1421,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
           set.seed(seed)
           fit = cv.glmnet(x1, x2,
                           nfold = 10, #-fold cross-validation
-                          family = "cox", alpha = 0,
-                          type.measure = "class")
+                          family = "cox", alpha = 0
+                          )
           rs <- lapply(val_dd_list2, function(x){cbind(x[,1:2], RS = as.numeric(predict(fit, type = 'response', newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))})
           cc <- data.frame(Cindex = sapply(rs, function(x){as.numeric(summary(coxph(Surv(OS.time, OS) ~ RS, x))$concordance[1])})) %>%
             rownames_to_column('ID')
@@ -1664,8 +1664,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
       set.seed(seed)
       fit = cv.glmnet(x1, x2,
                       nfold = 10, #10-fold cross-validation
-                      family = "cox", alpha = 1,
-                      type.measure = "class")
+                      family = "cox", alpha = 1
+                      )
       rs <- lapply(val_dd_list2, function(x){cbind(x[,1:2], RS = as.numeric(predict(fit, type = 'response', newx = as.matrix(x[, -c(1,2)]), s = fit$lambda.min)))})
       cc <- data.frame(Cindex = sapply(rs, function(x){as.numeric(summary(coxph(Surv(OS.time, OS) ~ RS, x))$concordance[1])})) %>%
         rownames_to_column('ID')
@@ -1745,8 +1745,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
       set.seed(seed)
       fit = cv.glmnet(x1, x2,
                       nfold=10, #10-fold cross-validation
-                      family = "cox", alpha = 0,
-                      type.measure = "class")
+                      family = "cox", alpha = 0
+                      )
       rs <- lapply(val_dd_list2, function(x){cbind(x[,1:2], RS = as.numeric(predict(fit, type = 'response', newx = as.matrix(x[, -c(1,2)]), s = fit$lambda.min)))})
       cc <- data.frame(Cindex = sapply(rs,function(x){as.numeric(summary(coxph(Surv(OS.time, OS) ~ RS, x))$concordance[1])})) %>%
         rownames_to_column('ID')
@@ -2020,8 +2020,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
       fit = glmnet(x1, x2, family = "cox", alpha = 0, lambda = NULL)
       cv.fit = cv.glmnet(x1, x2,
                         nfold = 10, #10-fold cross-validation
-                        family = "cox",
-                        type.measure = "class"
+                        family = "cox"
+                        
       )
 
       rs <- lapply(val_dd_list, function(x){cbind(x[, 1:2], RS = as.numeric(predict(fit, type = 'response', newx = as.matrix(x[, -c(1,2)]), s = cv.fit$lambda.min)))})
@@ -2044,8 +2044,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
       set.seed(seed)
       fit = cv.glmnet(x1, x2,
                       nfold = 10, #10-fold cross-validation
-                      family = "cox", alpha = 1,
-                      type.measure = "class")
+                      family = "cox", alpha = 1
+                      )
       rs <- lapply(val_dd_list, function(x){cbind(x[, 1:2], RS = as.numeric(predict(fit, type = 'response', newx = as.matrix(x[, -c(1,2)]), s = fit$lambda.min)))})
       cc <- data.frame(Cindex = sapply(rs, function(x){as.numeric(summary(coxph(Surv(OS.time, OS) ~ RS, x))$concordance[1])})) %>%
         rownames_to_column('ID')
@@ -2065,8 +2065,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
       set.seed(seed)
       fit = cv.glmnet(x1, x2,
                       nfold = 10, #10-fold cross-validation
-                      family = "cox", alpha = 1,
-                      type.measure = "class")
+                      family = "cox", alpha = 1
+                      )
       fit$lambda.min
 
       myCoefs <- coef(fit, s = "lambda.min");
@@ -2109,8 +2109,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
       set.seed(seed)
       fit = cv.glmnet(x1, x2,
                       nfold = 10, #例文描述：10-fold cross-validation
-                      family = "cox", alpha = 1,
-                      type.measure = "class")
+                      family = "cox", alpha = 1
+                      )
       fit$lambda.min
 
       myCoefs <- coef(fit, s = "lambda.min");
@@ -2160,8 +2160,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
       set.seed(seed)
       fit = cv.glmnet(x1, x2,
                       nfold = 10, #10-fold cross-validation
-                      family = "cox", alpha = 1,
-                      type.measure = "class")
+                      family = "cox", alpha = 1
+                      )
       fit$lambda.min
 
 
@@ -2200,8 +2200,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
       set.seed(seed)
       fit = cv.glmnet(x1, x2,
                       nfold = 10, #10-fold cross-validation
-                      family = "cox", alpha = 1,
-                      type.measure = "class")
+                      family = "cox", alpha = 1
+                      )
       fit$lambda.min
 
       myCoefs <- coef(fit, s = "lambda.min");
@@ -2241,8 +2241,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
       set.seed(seed)
       fit = cv.glmnet(x1, x2,
                       nfold = 10, #10-fold cross-validation
-                      family = "cox", alpha = 1,
-                      type.measure = "class")
+                      family = "cox", alpha = 1
+                      )
       fit$lambda.min
 
 
@@ -2284,8 +2284,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
       set.seed(seed)
       fit = cv.glmnet(x1, x2,
                       nfold = 10, #10-fold cross-validation
-                      family = "cox", alpha = 1,
-                      type.measure = "class")
+                      family = "cox", alpha = 1
+                      )
       fit$lambda.min
 
       myCoefs <- coef(fit, s = "lambda.min");
@@ -2346,8 +2346,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
       set.seed(seed)
       fit = cv.glmnet(x1, x2,
                       nfold = 10, #10-fold cross-validation
-                      family = "cox", alpha = 1,
-                      type.measure = "class")
+                      family = "cox", alpha = 1
+                      )
       fit$lambda.min
 
       myCoefs <- coef(fit, s = "lambda.min");
@@ -2647,8 +2647,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
         fit = glmnet(x1, x2, family = "cox", alpha = 0, lambda = NULL)
         cv.fit = cv.glmnet(x1, x2,
                           nfold = 10, #10-fold cross-validation
-                          family = "cox",
-                          type.measure = "class"
+                          family = "cox"
+                          
         )
 
 
@@ -2680,8 +2680,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
         set.seed(seed)
         fit = cv.glmnet(x1, x2,
                         nfold = 10, #10-fold cross-validation
-                        family = "cox", alpha = 1,
-                        type.measure = "class")
+                        family = "cox", alpha = 1
+                        )
         rs <- lapply(val_dd_list, function(x){cbind(x[, 1:2], RS = as.numeric(predict(fit, type = 'response', newx = as.matrix(x[, -c(1,2)]), s = fit$lambda.min)))})
         cc <- data.frame(Cindex = sapply(rs, function(x){as.numeric(summary(coxph(Surv(OS.time, OS) ~ RS, x))$concordance[1])})) %>%
           rownames_to_column('ID')
@@ -3099,8 +3099,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
 
             fit = cv.glmnet(x1, x2,
                             nfold=10, #10-fold cross-validation
-                            family = "cox", alpha = 0,
-                            type.measure = "class")
+                            family = "cox", alpha = 0
+                            )
             rs <- lapply(val_dd_list2, function(x){cbind(x[, 1:2], RS = as.numeric(predict(fit, type = 'response', newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))})
             cc <- data.frame(Cindex = sapply(rs, function(x){as.numeric(summary(coxph(Surv(OS.time, OS) ~ RS, x))$concordance[1])})) %>%
               rownames_to_column('ID')
@@ -3147,8 +3147,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
             set.seed(seed)
             fit = cv.glmnet(x1, x2,
                             nfold = 10, #10-fold cross-validation
-                            family = "cox", alpha = 1,
-                            type.measure = "class")
+                            family = "cox", alpha = 1
+                            )
             rs <- lapply(val_dd_list2, function(x){cbind(x[, 1:2], RS = as.numeric(predict(fit, type = 'response', newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))})
 
             cc <- data.frame(Cindex = sapply(rs, function(x){as.numeric(summary(coxph(Surv(OS.time, OS) ~ RS, x))$concordance[1])})) %>%
@@ -3513,8 +3513,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
           set.seed(seed)
           fit = cv.glmnet(x1, x2,
                           nfold = 10, #10-fold cross-validation
-                          family = "cox", alpha = 0,
-                          type.measure = "class")
+                          family = "cox", alpha = 0
+                          )
           rs <- lapply(val_dd_list2, function(x){cbind(x[,1:2], RS = as.numeric(predict(fit, type = 'response', newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))})
           cc <- data.frame(Cindex = sapply(rs, function(x){as.numeric(summary(coxph(Surv(OS.time, OS) ~ RS, x))$concordance[1])})) %>%
             rownames_to_column('ID')
@@ -3553,8 +3553,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
           set.seed(seed)
           fit = cv.glmnet(x1, x2,
                           nfold=10, #10-fold cross-validation
-                          family = "cox", alpha = 1,
-                          type.measure = "class")
+                          family = "cox", alpha = 1
+                          )
 
           rs <- lapply(val_dd_list2, function(x){cbind(x[,1:2], RS = as.numeric(predict(fit, type = 'response', newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))})
           cc <- data.frame(Cindex = sapply(rs, function(x){as.numeric(summary(coxph(Surv(OS.time, OS) ~ RS, x))$concordance[1])})) %>%
@@ -3707,8 +3707,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
             set.seed(seed)
             fit = cv.glmnet(x1, x2,
                             nfold = 10, #10-fold cross-validation
-                            family = "cox", alpha = 1,
-                            type.measure = "class")
+                            family = "cox", alpha = 1
+                            )
             rs <- lapply(val_dd_list2, function(x){cbind(x[,1:2], RS = as.numeric(predict(fit, type = 'response', newx = as.matrix(x[, -c(1,2)]), s = fit$lambda.min)))})
             cc <- data.frame(Cindex = sapply(rs, function(x){as.numeric(summary(coxph(Surv(OS.time, OS) ~ RS, x))$concordance[1])})) %>%
               rownames_to_column('ID')
@@ -3798,8 +3798,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
             set.seed(seed)
             fit = cv.glmnet(x1, x2,
                             nfold=10, #10-fold cross-validation
-                            family = "cox", alpha = 0,
-                            type.measure = "class")
+                            family = "cox", alpha = 0
+                            )
             rs <- lapply(val_dd_list2, function(x){cbind(x[,1:2], RS = as.numeric(predict(fit, type = 'response', newx = as.matrix(x[, -c(1,2)]), s = fit$lambda.min)))})
             cc <- data.frame(Cindex = sapply(rs,function(x){as.numeric(summary(coxph(Surv(OS.time, OS) ~ RS, x))$concordance[1])})) %>%
               rownames_to_column('ID')
@@ -3989,8 +3989,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
           set.seed(seed)
           fit = cv.glmnet(x1, x2,
                           nfold = 10, #10-fold cross-validation
-                          family = "cox", alpha = 1,
-                          type.measure = "class")
+                          family = "cox", alpha = 1
+                          )
           fit$lambda.min
 
           myCoefs <- coef(fit, s = "lambda.min");
@@ -4038,8 +4038,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
           set.seed(seed)
           fit = cv.glmnet(x1, x2,
                           nfold = 10, #10-fold cross-validation
-                          family = "cox", alpha = 1,
-                          type.measure = "class")
+                          family = "cox", alpha = 1
+                          )
           fit$lambda.min
 
           myCoefs <- coef(fit, s = "lambda.min");
@@ -4095,8 +4095,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
           set.seed(seed)
           fit = cv.glmnet(x1, x2,
                           nfold = 10, #10-fold cross-validation
-                          family = "cox", alpha = 1,
-                          type.measure = "class")
+                          family = "cox", alpha = 1
+                          )
           fit$lambda.min
 
 
@@ -4142,8 +4142,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
           set.seed(seed)
           fit = cv.glmnet(x1, x2,
                           nfold = 10, #例文描述：10-fold cross-validation
-                          family = "cox", alpha = 1,
-                          type.measure = "class")
+                          family = "cox", alpha = 1
+                          )
           fit$lambda.min
 
           myCoefs <- coef(fit, s = "lambda.min");
@@ -4194,8 +4194,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
           set.seed(seed)
           fit = cv.glmnet(x1, x2,
                           nfold = 10, #10-fold cross-validation
-                          family = "cox", alpha = 1,
-                          type.measure = "class")
+                          family = "cox", alpha = 1
+                          )
           fit$lambda.min
 
 
@@ -4237,8 +4237,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
           set.seed(seed)
           fit = cv.glmnet(x1, x2,
                           nfold = 10, # 10-fold cross-validation
-                          family = "cox", alpha = 1,
-                          type.measure = "class")
+                          family = "cox", alpha = 1
+                          )
           fit$lambda.min
 
           myCoefs <- coef(fit, s = "lambda.min");
@@ -4306,8 +4306,8 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
           set.seed(seed)
           fit = cv.glmnet(x1, x2,
                           nfold = 10, #例文描述：10-fold cross-validation
-                          family = "cox", alpha = 1,
-                          type.measure = "class")
+                          family = "cox", alpha = 1
+                          )
           fit$lambda.min
 
           myCoefs <- coef(fit, s = "lambda.min");
