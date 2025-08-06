@@ -24,7 +24,7 @@ It offers four main applications:
 - Visualizing the performance of each model.
 ![Screenshot](https://github.com/l-magnificence/Mime/blob/main/fig/graph.jpg)
 
-Here is a detailed tutorial on step-wise procedures of this versatile machine-learning framework, which can be also accessed from JoVE (https://www.jove.com/t/68553/constructing-visualizing-models-using-mime-based-machine-learning).
+⚡ Here is a detailed tutorial on step-wise procedures of this versatile machine-learning framework, which can be also accessed from JoVE (https://www.jove.com/t/68553/constructing-visualizing-models-using-mime-based-machine-learning).
 
 ## Install
 
@@ -378,7 +378,7 @@ aplot::plot_list(gglist=survplot,ncol=2)
 
 ## Citations
 If you use **_Mime_** in the study, please cite the following publication:
-- Liu H, Zhang W, Zhang Y, et al. Mime: A flexible machine-learning framework to construct and visualize models for clinical characteristics prediction and feature selection. Comput Struct Biotechnol J. 2024.
+- Liu H, Zhang W, Zhang Y, Adegboro AA, Fasoranti DO, Dai L, Pan Z, Liu H, Xiong Y, Li W, Peng K, Wanggou S, Li X. Mime: A flexible machine-learning framework to construct and visualize models for clinical characteristics prediction and feature selection. Comput Struct Biotechnol J. 2024.
 - Liu H, Zhang W, Zhang, Y, Li X, Wanggou S. Constructing and Visualizing Models using Mime-based Machine-learning Framework. J Vis Exp. 2025.
 
 ## Contact
