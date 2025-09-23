@@ -63,8 +63,8 @@ meta_unicox_vis <- function(object, # output of cal_unicox_meta_ml_res
   )
   dt$p <- ifelse(dt$pvalue < 0.001, "P<0.001", sprintf("%.3f", dt$pvalue))
   colnames(dt)[c(6:8, 10:11, 15)] <- c("Cohorts", "TE", "SE(TE)", "Weight(random)", "Weight(fixed)", "P value")
-  dt$TE <- round(dt$TE, 2)
-  dt$`SE(TE)` <- round(dt$`SE(TE)`, 2)
+  dt$TE <- round(as.numeric(dt$TE), 2)
+  dt$`SE(TE)` <- round(as.numeric(dt$`SE(TE)`), 2)
   dt[c((nrow(dt) - 1):nrow(dt)), c(7, 8)] <- ""
   rownames(dt) <- dt$Cohorts
   dt <- dt[c(dataset, "Random effect model", "Fixed effect model"), ]
