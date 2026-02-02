@@ -2206,7 +2206,7 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
 
       myCoefs <- coef(fit, s = "lambda.min");
       rid <- myCoefs@Dimnames[[1]][Matrix::which(myCoefs != 0 )]
-      rid<-rid[-1]
+      # rid<-rid[-1]
 
       if(length(rid)>1) {
 
@@ -4148,7 +4148,7 @@ ML.Dev.Prog.Sig = function(train_data, # cohort data used for training, the coln
 
           myCoefs <- coef(fit, s = "lambda.min");
           rid <- myCoefs@Dimnames[[1]][Matrix::which(myCoefs != 0 )]
-          rid<-rid[-1]
+          # rid<-rid[-1]
 
           if(length(rid)>1) {
 
