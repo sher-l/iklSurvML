@@ -48,7 +48,7 @@ if (!requireNamespace("fastAdaboost", quietly = TRUE))
   devtools::install_github("souravc83/fastAdaboost")
 
 if (!requireNamespace("Mime", quietly = TRUE))
-  devtools::install_github("l-magnificence/Mime")
+  devtools::install_github("sher-l/Mime")
   
 library(Mime1)
 ```
