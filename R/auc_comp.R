@@ -23,9 +23,6 @@ auc_comp <- function(object, # output of cal_auc_pre.prog.sig
                      dataset_col = NULL, # color value for cohort
                      dataset # input datasets name
 ) {
-  library(ggplot2)
-  library(aplot)
-
   if (is.null(dataset_col) == T) {
     dataset_col <- c(
       "#3182BDFF", "#E6550DFF", "#31A354FF", "#756BB1FF", "#636363FF", "#6BAED6FF", "#FD8D3CFF", "#74C476FF",

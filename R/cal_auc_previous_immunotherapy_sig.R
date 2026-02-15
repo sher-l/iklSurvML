@@ -13,8 +13,6 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
                                  seed = 5201314,
                                  train_data,
                                  cores_for_parallel = 12) {
-  library(dplyr)
-  
   cat("Data processing")
 
   list_train_vali_Data <- lapply(list_train_vali_Data, function(x) {
@@ -201,7 +199,6 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
   # Reference: Dominguez CX, Müller S, Keerthivasan S, Koeppen H, Hung J, Gierke S, et al. Single-Cell RNA Sequencing Reveals Stromal Evolution into LRRC15 + Myofibroblasts as a Determinant of Patient Response to Cancer Immunotherapy. Cancer Discov [Internet]. 2020;10:232–53.
   # Available from: http://cancerdiscovery.aacrjournals.org/lookup/doi/10.1158/2159-8290.CD-19-0644
 
-  library(sparrow)
   sig <- ls_sig[["LRRC15.CAF.Sig"]]
   sig
   sig <- gsub("-", ".", sig)
@@ -238,8 +235,6 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
   # Available from: DOI: 10.1093/bib/bbaa345
   cat("1.5 NLRP3.Sig")
 
-  library(GSVA)
-  library(GSEABase)
   sig <- NLRP3.Sig
   sig <- gsub("-", ".", sig)
 
@@ -400,19 +395,6 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
 
     return(ls_model)
   }
-  if (T) {
-    library(stringr)
-    library(gridExtra)
-    library(future)
-    library(sva)
-    library(e1071)
-    library(pROC)
-    library(ROCit)
-    library(caret)
-    library(doParallel)
-    library(cancerclass)
-    library(dplyr)
-  }
 
   res <- model.Dev(
     training = train_data,
@@ -455,10 +437,6 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
 
   # source("/export3/zhangw/Project_Cross/Project_Mime/data/sig/IMPRES/ImmRes_source.R") ## 'ImmRes_OE.R' was downloaded from https://github.com/livnatje/ImmuneResistance
   source(system.file("extdata", "ImmRes_source.R", package = "Mime1"))
-
-  library(caret)
-  # library(recipes,lib.loc = "/export/bioinfo-team/home/liuhw/R/x86_64-pc-linux-gnu-library/4.1")
-  library(recipes)
 
   sig <- ls_sig[["TcellExc.Sig"]]
   sig <- gsub("-", ".", sig)
@@ -670,8 +648,6 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
   cat("1.11 IPRES.Sig")
 
   ### === GSVA ===###
-  library(GSVA)
-  library(GSEABase)
 
   gmt <- Mime1::IPRES_gmt
   all(duplicated(names(gmt))) # no duplicated ids
@@ -713,8 +689,6 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
   # TRS.Sig was calculated using GSVA
   # Reference: Yan M, Hu J, Ping Y, Xu L, Liao G, Jiang Z, Pang B, Sun S, Zhang Y, Xiao Y, Li X. Single-Cell Transcriptomic Analysis Reveals a Tumor-Reactive T Cell Signature Associated With Clinical Outcome and Immunotherapy Response In Melanoma. Front Immunol. 2021 Nov 5;12:758288.
   # Available from: doi: 10.3389/fimmu.2021.758288.
-  library(GSVA)
-  library(GSEABase)
   sig <- TRS.Sig
   cat("1.12 TRS.Sig")
 

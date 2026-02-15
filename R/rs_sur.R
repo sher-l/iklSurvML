@@ -36,9 +36,6 @@ rs_sur <- function(object, # output of ML.Dev.Prog.Sig  mode = "all",'single' or
                    xlab = NULL, # x axis title
                    pval.coord = NULL # p value position
 ) {
-  library(survival)
-  library(survminer)
-
   if (is.null(color) == T) {
     color <- c("#868686", "#B24745") ## default color value
   } else {

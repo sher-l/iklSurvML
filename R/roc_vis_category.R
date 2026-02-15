@@ -29,8 +29,6 @@ roc_vis_category <- function(object, # output of ML.Dev.Pred.Category.Sig
                              dataset_col = NULL, # color value for  dataset
                              anno_position = NULL # auc value position
 ) {
-  library(ggplot2)
-
   if (is.null(anno_position) == T) {
     anno_position <- c(0.53, 0.35)
   } else {

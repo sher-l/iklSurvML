@@ -39,9 +39,6 @@ core_feature_sur <- function(gene, # gene name
                              xlab = NULL, # x axis title
                              pval.coord = NULL # p value position
 ) {
-  library(survival)
-  library(survminer)
-
   if (is.null(color) == T) {
     color <- c("#868686", "#B24745") ## default color value
   } else {

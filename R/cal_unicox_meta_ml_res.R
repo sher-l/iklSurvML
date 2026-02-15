@@ -9,7 +9,6 @@
 cal_unicox_meta_ml_res <- function(input # 列名为 HR，pvalue ，LCI， HCI的一个队列，行名为队列名称，在这里主要是unicox的结果
 ) {
   if (identical(colnames(input), c("HR", "pvalue", "LCI", "HCI"))) {
-    library(meta)
     input <- input %>%
       as.data.frame() %>%
       mutate(`Hazard Ratio(95%CI)` = paste(HR, "(", LCI, "-", HCI, ")", sep = ""))

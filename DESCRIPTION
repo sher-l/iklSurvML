@@ -1,92 +1,89 @@
-Package: Mime1
+Package: iklSurvML
 Type: Package
-Title: Machine learning-based integration model with elegant performance
-Version: 0.0.0.9000
-Author@R: c(
-    person("Wei", "Zhang", , "xxx", role = c("cre", "aut")),
-    person("Hongwei", "Liu", , "xxx", role = "aut"),
-    person("Yihao", "Zhang", , "xxx", role = "aut"),
+Title: Optimized Survival Machine Learning with 117 Algorithm Combinations
+Version: 1.0.0
+Authors@R: c(
+    person("sher-l", email = "sher-l@users.noreply.github.com", role = c("cre", "aut"))
   )
-Description: The Mime package provides a user-friendly solution for constructing 
-    machine learning-based integration models from transcriptomic data. With the 
-    widespread use of high-throughput sequencing technologies, understanding biology 
-    and cancer heterogeneity has been revolutionized. Mime streamlines the process of 
-    developing predictive models with high accuracy, leveraging complex datasets to 
-    identify critical genes associated with disease progression, patient outcomes, 
-    and therapeutic response. It offers four main applications (i) establishing 
-    prognosis models using 10 machine learning algorithms, (ii) building binary 
-    response models with 7 machine learning algorithms, (iii) conducting core feature 
-    selection related to prognosis using 8 machine learning methods, and (iv) visualizing 
-    the performance of each model. 
+Author: sher-l [cre, aut]
+Maintainer: sher-l <sher-l@users.noreply.github.com>
+Description: An optimized R package for survival analysis using machine learning.
+    Provides 117 combinations of 10 ML algorithms (RSF, Enet, StepCox, CoxBoost,
+    plsRcox, SuperPC, GBM, survival-SVM, Ridge, Lasso) with feature selection
+    caching for improved performance. Includes tools for developing prognostic
+    models, feature selection, and performance visualization.
 License: MIT + file LICENSE
-URL: https://github.com/l-magnificence/Mime
-BugReports: https://github.com/l-magnificence/Mime/issues
-Depends: 
+URL: https://github.com/sher-l/iklSurvML
+BugReports: https://github.com/sher-l/iklSurvML/issues
+Depends:
     R (>= 4.1.0)
 Imports:
     ComplexHeatmap,
-    viridis,
-    kknn,
     Matrix,
-    BART,
     ROCit,
+    BART,
     caret,
     compareC,
     data.table,
     doParallel,
     dplyr,
     e1071,
+    forestploter,
     future,
     gbm,
     ggbreak,
+    ggcorrplot,
     ggplot2,
     ggpubr,
     ggsci,
     glmnet,
+    gplots,
     grid,
     gridExtra,
     magrittr,
     meta,
     miscTools,
+    mixOmics,
     pROC,
     plsRcox,
     randomForestSRC,
     readr,
     recipes,
+    reshape2,
+    scales,
     stringr,
     superpc,
     survival,
     survivalROC,
     survivalsvm,
+    survminer,
     tibble,
     tidyr,
     tidyverse,
-    compositions,
-    pbapply,
-    reshape2,
-    UpSetR,
-    forestploter,
+    tidyselect,
+    viridis,
     aplot,
-    e1071,
     Ckmeans.1d.dp,
-    scales,
     Hmisc,
     Boruta,
     mixtools,
-    ROCR
+    ROCR,
+    UpSetR,
+    compositions,
+    pbapply
 Suggests:
-    immunedeconv,
     IOBR,
     knitr,
     rmarkdown,
-    testthat
-biocViews:
-    GSEABase, 
+    testthat (>= 3.0.0),
+    GSEABase,
     GSVA,
-    cancerclass,
+    sva
+BiocViews:
+    GSEABase,
+    GSVA,
     mixOmics,
-    sparrow,
-    sva 
+    sva
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.2.3

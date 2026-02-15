@@ -7,6 +7,6 @@
 # * https://testthat.r-lib.org/reference/test_package.html#special-files
 
 library(testthat)
-library(MIME)
+library(Mime)
 
-test_check("MIME")
+test_check("Mime")

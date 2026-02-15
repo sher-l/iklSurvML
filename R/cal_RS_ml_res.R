@@ -24,34 +24,6 @@ cal_RS_ml_res <- function(res.by.ML.Dev.Prog.Sig = NULL, # ML.Dev.Prog.Sig, 函�
                           alpha_for_Enet = NULL, # 0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9
                           direction_for_stepcox = NULL #  c("both", "backward", "forward")
 ) {
-  #### loading the packages ########
-  if (T) {
-    library(survival)
-    library(randomForestSRC)
-    library(glmnet)
-    library(plsRcox)
-    library(superpc)
-    library(gbm)
-    library(CoxBoost)
-    library(survivalsvm)
-    library(dplyr)
-    library(tibble)
-    library(BART)
-    library(miscTools)
-    library(compareC)
-    library(ggplot2)
-    library(ggsci)
-    library(tidyr)
-    library(ggbreak)
-    library(mixOmics)
-    library(data.table)
-
-
-
-    Sys.setenv(LANGUAGE = "en") # 显示英文报错信息
-    options(stringsAsFactors = FALSE) # 禁止chr转成factor
-  }
-
   message("--- Data preprocessing ---")
 
   ####  Data preprocessing #####

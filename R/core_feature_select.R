@@ -18,8 +18,6 @@ core_feature_select <- function(object, # output of ML.Corefeature.Prog.Screen, 
                                 mb.ratio = NULL, # Ratio between matrix plot and main bar plot
                                 col = NULL # color value for sets.bar.color,main.bar.color,matrix.color, shade.color
 ) {
-  library(UpSetR)
-
   if (is.null(col) == T) {
     col <- c("#E18727", "#B09C85", "#ADB6B6", "#B09C85") ## default 4 color values
   } else {

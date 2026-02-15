@@ -22,25 +22,6 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
                                      seed = 5201314, # 5201314
                                      cores_for_parallel = 12 #
 ) {
-  ### === loading packages ===###
-  message("---loading the packages ---")
-
-
-  if (T) {
-    library(stringr)
-    library(gridExtra)
-    library(future)
-    library(sva)
-    library(e1071)
-    library(pROC)
-    library(ROCit)
-    library(caret)
-    library(doParallel)
-    library(cancerclass)
-    library(dplyr)
-  }
-
-
   ###### loading the function #######
 
 
@@ -178,8 +159,6 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
 
 
   cal.model.auc <- function(res.by.model.Dev, cohort.for.cal, sig) {
-    library(dplyr)
-    
     rownames(cohort.for.cal) <- cohort.for.cal$ID
     validation <- cohort.for.cal[, colnames(cohort.for.cal) %in% c("Var", sig)]
     validation$Var <- factor(validation$Var, levels = c("N", "Y"))
@@ -218,8 +197,6 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
 
 
   cal.model.roc <- function(res.by.model.Dev, cohort.for.cal, sig) {
-    library(dplyr)
-
     rownames(cohort.for.cal) <- cohort.for.cal$ID
     validation <- cohort.for.cal[, colnames(cohort.for.cal) %in% c("Var", sig)]
     validation$Var <- factor(validation$Var, levels = c("N", "Y"))

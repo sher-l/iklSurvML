@@ -19,44 +19,6 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
                                        seed = NULL,
                                        single_ml = NULL, # c("RSF", "Enet", "Boruta","Xgboost","SVM-REF","Lasso","CoxBoost','StepCox')
                                        nodesize = 5) {
-  ### Screen out the core features via the multiple machine leaning algorithms
-  ### loading the packages ####
-
-  if (T) {
-    Biocductor_packages <- c(
-      "tidyverse",
-      "scales",
-      "Hmisc",
-      "survival",
-      "randomForestSRC",
-      "glmnet",
-      "plsRcox",
-      "CoxBoost",
-      "survivalsvm",
-      "dplyr",
-      "tibble",
-      "BART",
-      "miscTools",
-      "compareC",
-      "tidyr",
-      "mixOmics",
-      "data.table",
-      "pbapply",
-      "e1071",
-      "Boruta",
-      "xgboost",
-      "Ckmeans.1d.dp",
-      "Matrix"
-    )
-
-    lapply(Biocductor_packages, function(x) {
-      library(x,
-        character.only = T
-        # ,  lib.loc = "/export/bioinfo-team/home/xiongzj/R/x86_64-pc-linux-gnu-library/4.1"
-      )
-    })
-  }
-
   ### laoding the function ####
 
   if (T) {
@@ -244,7 +206,6 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
 
       print("Rejecting a null value")
 
-      library(survival)
       # 将空值的基因变成0
       # table(is.na(inputSet))
       inputSet[is.na(inputSet)] <- 0
@@ -334,7 +295,6 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
 
       print("Rejecting a null value")
 
-      library(survival)
       # 将空值的基因变成0
       # table(is.na(inputSet))
       inputSet[is.na(inputSet)] <- 0

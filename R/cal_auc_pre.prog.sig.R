@@ -20,11 +20,6 @@ cal_auc_pre.prog.sig <- function(use_your_own_collected_sig, # 是否使用您�
                                  AUC_time = NULL, ### 时间 年份
                                  auc_cal_method = "KM" # KM, NNE 默认为KM
 ) {
-  library(tidyverse)
-  library(survival)
-  library(survivalROC)
-
-
   if (use_your_own_collected_sig) {
     sig.input <- collected_sig_table
   } else {

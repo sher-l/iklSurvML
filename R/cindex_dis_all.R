@@ -24,9 +24,6 @@ cindex_dis_all <- function(object, # output of ML.Dev.Prog.Sig mode = 'all'
                            width = NULL, # width of right plot
                            height = NULL # height of right plot
 ) {
-  library(ggplot2)
-  library(aplot)
-
   if (is.null(width) == T) {
     width <- 0.35 ## default 0.35
   } else {

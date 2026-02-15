@@ -16,8 +16,6 @@ core_feature_rank <- function(object, # output of ML.Corefeature.Prog.Screen
                               col = NULL, # color value for segment and point
                               top = NULL # top number gene to show
 ) {
-  library(ggplot2)
-
   if (is.null(col) == T) {
     col <- c("#B09C85", "#E18727")
   } else {

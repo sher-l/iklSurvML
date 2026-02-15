@@ -18,8 +18,6 @@ cindex_dis_select <- function(object, # output of ML.Dev.Prog.Sig mode = "all",'
                               model, ## if input object is from mode=all, then define model as specific model name while SOD
                               order = NULL # cohort order plot and input identical name of cohort in output of ML.Dev.Prog.Sig
 ) {
-  library(ggplot2)
-
   if (is.null(dataset_col) == T) {
     dataset_col <- c(
       "#3182BDFF", "#E6550DFF", "#31A354FF", "#756BB1FF", "#636363FF", "#6BAED6FF", "#FD8D3CFF", "#74C476FF",

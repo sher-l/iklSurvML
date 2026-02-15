@@ -29,8 +29,6 @@ roc_vis <- function(object, # output of cal_AUC_ml_res  mode = "all",'single' or
                     anno_position = NULL, # auc value position
                     year # year auc
 ) {
-  library(ggplot2)
-
   if (is.null(anno_position) == T) {
     anno_position <- c(0.53, 0.35)
   } else {

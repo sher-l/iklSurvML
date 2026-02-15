@@ -23,15 +23,9 @@ immuno_heatmap<-function(object,# output of ML.Dev.Prog.Sig
                          model_name, ## input specific model name
                          col = NULL, # two color value for high risk and low risk  group
                          dataset # input datasets name
-                            
+
 ){
-  
-  library(gplots)
-  library(viridis)
-  library(tidyverse)
-  library(dplyr)
-  library(ComplexHeatmap)
-  
+
   if (is.null(col) == T) {
     col <- c("#868686", "#B24745") ## default color value
   } else {

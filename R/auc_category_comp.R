@@ -23,12 +23,9 @@ auc_category_comp<-function(object,# output of ML.Dev.Pred.Category.Sig
                       model_name, ## c('nb','svmRadialWeights','rf','kknn','adaboost','LogitBoost','cancerclass')
                       dataset_col=NULL, # color value for cohort
                       dataset # input datasets name
-                      
+
 ){
-  
-  library(ggplot2)
-  library(aplot)
-  
+
   if (is.null(dataset_col) == T){
     dataset_col<-c("#3182BDFF","#E6550DFF","#31A354FF","#756BB1FF","#636363FF","#6BAED6FF","#FD8D3CFF","#74C476FF",
                               "#9E9AC8FF","#969696FF","#9ECAE1FF","#FDAE6BFF","#A1D99BFF","#BCBDDCFF","#BDBDBDFF","#C6DBEFFF",

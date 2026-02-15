@@ -36,35 +36,6 @@ cal_AUC_ml_res <- function(res.by.ML.Dev.Prog.Sig = NULL, # ML.Dev.Prog.Sig, 函
                            direction_for_stepcox = NULL, #  c("both", "backward", "forward")
                            auc_cal_method = "KM" # KM, NNE 默认为KM
 ) {
-  #### loading the packages ########
-  if (T) {
-    library(survival)
-    library(randomForestSRC)
-    library(glmnet)
-    library(plsRcox)
-    library(superpc)
-    library(gbm)
-    library(CoxBoost)
-    library(survivalsvm)
-    library(dplyr)
-    library(tibble)
-    library(BART)
-    library(miscTools)
-    library(compareC)
-    library(ggplot2)
-    library(ggsci)
-    library(tidyr)
-    library(ggbreak)
-    library(mixOmics)
-    library(data.table)
-    library(survivalROC)
-
-
-
-    Sys.setenv(LANGUAGE = "en") # 显示英文报错信息
-    options(stringsAsFactors = FALSE) # 禁止chr转成factor
-  }
-
   message("--- Data preprocessing ---")
 
   ####  Data preprocessing #####

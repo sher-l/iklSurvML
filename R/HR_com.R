@@ -28,10 +28,6 @@ HR_com <- function(object, # output of cal_auc_pre.prog.sig
                    dataset, # input datasets name
                    type # c('categorical'),c('continuous) Univariate cox regression analysis, suggest categorical group by median
 ) {
-  library(survival)
-  library(survminer)
-  library(ggplot2)
-
   if (is.null(color) == T) {
     color <- c("#0084A7", "white", "#E05D00") ## default color value
   } else {

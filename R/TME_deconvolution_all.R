@@ -35,17 +35,6 @@ TME_deconvolution_all <- function(inputmatrix.list, # A list contain the datafra
                                   scale_mrna = TRUE,
                                   expected_cell_types = NULL,
                                   ...) {
-  #### loading the packages ########
-  if (T) {
-    library(immunedeconv)
-    library(dplyr)
-    library(magrittr)
-    library(data.table)
-    library(readr)
-    Sys.setenv(LANGUAGE = "en") # 显示英文报错信息
-    options(stringsAsFactors = FALSE) # 禁止chr转成factor
-  }
-
   message("--- Data preprocessing ---")
   annotate_cell_type <- function(result_table, method) {
     cell_type_map %>%

@@ -26,8 +26,6 @@ auc_dis_select <- function(object, # a list of output of cal_AUC_ml_res  mode = 
                            order = NULL, # cohort order plot and input identical name of cohort in output of cal_AUC_ml_res
                            year # consistent number with object length, such as c(1,3,...,9)
 ) {
-  library(ggplot2)
-
   if (is.null(dataset_col) == T) {
     dataset_col <- c(
       "#3182BDFF", "#E6550DFF", "#31A354FF", "#756BB1FF", "#636363FF", "#6BAED6FF", "#FD8D3CFF", "#74C476FF",

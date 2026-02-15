@@ -24,19 +24,6 @@ signature_score <- function(res.by.ML.Dev.Prog.Sig, # ML.Dev.Prog.Sig, 函数计
                             cor.method = "pearson", # "pearson" "kendall" "spearman"
                             cor.siganatue = c("CD_8_T_effector", "DDR") # any signatures in the signature collection, such as CD_8_T_effector and DDR in IOBR::signature_collection
 ) {
-  #### loading the packages ########
-  if (T) {
-    library(IOBR)
-    library(dplyr)
-    library(magrittr)
-    library(data.table)
-    library(readr)
-    library(stats)
-
-    Sys.setenv(LANGUAGE = "en") # 显示英文报错信息
-    options(stringsAsFactors = FALSE) # 禁止chr转成factor
-  }
-
   two_subtype_logFC_Cpr_wilcox <- function(
       expr = NULL,
       treat_list = NULL,

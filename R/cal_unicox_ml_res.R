@@ -12,8 +12,6 @@ cal_unicox_ml_res <- function(res.by.ML.Dev.Prog.Sig = NULL, # ML.Dev.Prog.Sig, 
                               optimal.model, # 选择要计算的model
                               type = "categorical" # c('categorical'),c('continuous) 单因素回归 采用的变量，连续变量和分类变量，如果是分类变量，则按照中位值区分High and Low # 默认为分类变量
 ) {
-  library(tidyverse)
-  library(survival)
   ### 选定一个model 计算risk score 的单因素回归分析
 
   optimal.model <- optimal.model

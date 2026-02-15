@@ -31,9 +31,6 @@ cor_plot <- function(obj, # expression data frame
                      feature1, # signature selected
                      feature2,
                      method) { # pearson or spearman
-  library(ggplot2)
-  library(ggpubr)
-
   if (is.null(color) == T) {
     color <- "#1a9641" ## default color value
   } else {

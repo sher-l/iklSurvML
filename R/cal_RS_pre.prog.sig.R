@@ -16,9 +16,6 @@ cal_RS_pre.prog.sig <- function(use_your_own_collected_sig, # 是否使用您自
                                 type.sig, ### prognostic signature 的类型，c('Glioma','LGG','GBM')， c('Glioma'),c('Glioma','LGG')
                                 list_input_data # list of the cohorts(ID,OS.time, OS····)经过了log2（x+1）转化
 ) {
-  library(tidyverse)
-  library(survival)
-
   if (use_your_own_collected_sig) {
     sig.input <- collected_sig_table
   } else {
