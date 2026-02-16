@@ -9,9 +9,10 @@
 #' Same functionality as ML.Dev.Prog.Sig but with significant performance improvements:
 #' - Feature selection algorithms (RSF, StepCox, CoxBoost, Lasso) trained once and reused
 #' - All 117 combinations as per the original Mime paper
+#' - NEW: Parallel execution for 117 combinations (Linux only, uses fork)
 #'
 #' @inheritParams ML.Dev.Prog.Sig
-#' @param use_parallel Enable parallel processing (requires future package)
+#' @param use_parallel Enable parallel processing: TRUE = 12 cores fork (Linux), FALSE = sequential
 #' @return Same result structure as ML.Dev.Prog.Sig
 #' @export
 ML.Dev.Prog.Sig.Fast <- function(train_data,
@@ -27,23 +28,16 @@ ML.Dev.Prog.Sig.Fast <- function(train_data,
                                   double_ml2 = NULL,
                                   nodesize = NULL,
                                   seed = NULL,
-                                  cores_for_parallel = NULL,
+                                  cores_for_parallel = 12,
                                   use_parallel = TRUE) {
 
   # ---- Set default parameters ----
   if (is.null(alpha_for_Enet)) alpha_for_Enet <- 0.1
-  if (is.null(cores_for_parallel)) cores_for_parallel <- parallelly::availableCores(omit = 1)
   if (is.null(direction_for_stepcox)) direction_for_stepcox <- "both"
   if (is.null(unicox_p_cutoff)) unicox_p_cutoff <- 0.05
   if (is.null(unicox.filter.for.candi)) unicox.filter.for.candi <- TRUE
 
   rf_nodesize <- if(is.null(nodesize)) 5 else nodesize
-
-  # ---- Setup parallel backend ----
-  if (use_parallel && requireNamespace("future", quietly = TRUE)) {
-    future::plan(future::multisession, workers = cores_for_parallel)
-    on.exit(future::plan(future::sequential), add = TRUE)
-  }
 
   # ---- Data preprocessing (same as original) ----
   list_train_vali_Data <- lapply(list_train_vali_Data, function(x) {
@@ -86,10 +80,19 @@ ML.Dev.Prog.Sig.Fast <- function(train_data,
 
   # ---- Run algorithms ----
   if (mode == "all") {
-    result <- run_all_algorithms_117(
-      est_dd, train_data, val_dd_list, list_train_vali_Data, pre_var,
-      rf_nodesize, seed, cores_for_parallel
-    )
+    if (use_parallel) {
+      # Use parallel version (Linux fork, 12 cores)
+      result <- run_all_algorithms_117_parallel(
+        est_dd, train_data, val_dd_list, list_train_vali_Data, pre_var,
+        rf_nodesize, seed, cores = cores_for_parallel
+      )
+    } else {
+      # Use sequential version
+      result <- run_all_algorithms_117(
+        est_dd, train_data, val_dd_list, list_train_vali_Data, pre_var,
+        rf_nodesize, seed, cores_for_parallel
+      )
+    }
   } else if (mode == "single") {
     result <- run_single_algorithm(
       est_dd, train_data, val_dd_list, list_train_vali_Data, pre_var,
