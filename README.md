@@ -263,7 +263,6 @@ Parallel execution uses `parallel::mclapply` (Linux/macOS fork).
 
 ### v1.1.0
 - ✨ Add 12-core parallel execution for 117 combinations
-- 🐛 Fix Ridge regression cv.glmnet missing alpha=0 parameter
 - ✅ 100% consistency with Mime package (8/8 algorithms)
 
 ## Citation
@@ -396,7 +395,6 @@ result <- ML.Dev.Prog.Sig.Fast(..., use_parallel = TRUE, cores_for_parallel = 12
 
 ### v1.1.0
 - ✨ 新增 12 核并行执行
-- 🐛 修复 Ridge 回归 cv.glmnet 缺少 alpha=0 参数
 - ✅ 100% 一致性验证通过 (8/8 算法)
 
 ## 获取帮助
