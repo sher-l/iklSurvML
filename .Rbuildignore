@@ -4,4 +4,4 @@
 ^README\.Rmd$
 .Rhistory
 ..Rcheck
-*.Rout
+.*\.Rout$
