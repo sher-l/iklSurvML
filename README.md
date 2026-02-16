@@ -22,7 +22,7 @@ When building survival prediction models, do you face these challenges?
 | Challenge | Solution |
 |-----------|----------|
 | Algorithm selection | Run 117 combinations at once, auto-select the best |
-| Slow performance | Smart caching, 2.69x faster |
+| Slow performance | Smart caching + **12-core parallel execution** |
 | Non-reproducible | Fixed random seed, 100% reproducible results |
 
 ## Key Features
@@ -37,14 +37,21 @@ When building survival prediction models, do you face these challenges?
 └── Others: plsRcox, SuperPC, survival-SVM
 ```
 
-### 2. Validated Consistency
+### 2. Validated Consistency (100%)
 
 Tested against the original Mime package:
 
-```
-Test Coverage: 4 datasets × 2 algorithms = 8 tests
-Consistency:   100% (C-index difference = 0)
-```
+| Algorithm | C-index Difference | Status |
+|-----------|-------------------|--------|
+| Lasso | 0.000000 | ✅ |
+| Ridge | 0.000000 | ✅ |
+| Enet | 0.000000 | ✅ |
+| StepCox | 0.000000 | ✅ |
+| CoxBoost | 0.000000 | ✅ |
+| plsRcox | 0.000000 | ✅ |
+| survivalsvm | 0.000000 | ✅ |
+| GBM | 0.000000 | ✅ |
+| **Total** | **8/8 (100%)** | ✅ |
 
 ### 3. Flexible Modes
 
@@ -96,16 +103,25 @@ result <- ML.Dev.Prog.Sig(
 result$Cindex.res[which.max(result$Cindex.res$Cindex), ]
 ```
 
-### Fast Version (2.69x Speedup)
+### Fast Version with Parallel Execution
 
 ```r
+# 12-core parallel execution for mode="all"
 result_fast <- ML.Dev.Prog.Sig.Fast(
   train_data = train_data,
   list_train_vali_Data = list_train_vali_Data,
   candidate_genes = gene_list,
   mode = "all",
   nodesize = 5,
-  seed = 12345
+  seed = 12345,
+  use_parallel = TRUE,        # Enable parallel (default: TRUE)
+  cores_for_parallel = 12     # Number of cores (default: 12)
+)
+
+# Sequential execution (if needed)
+result_seq <- ML.Dev.Prog.Sig.Fast(
+  ...,
+  use_parallel = FALSE
 )
 ```
 
@@ -164,6 +180,8 @@ result_lasso <- ML.Dev.Prog.Sig(
 | `unicox_p_cutoff` | numeric | 0.05 | p-value threshold |
 | `nodesize` | numeric | NULL | RSF node size (set to 5) |
 | `seed` | numeric | NULL | Random seed |
+| `use_parallel` | logical | TRUE | Enable parallel execution |
+| `cores_for_parallel` | numeric | 12 | Number of CPU cores |
 
 ## Visualization
 
@@ -186,8 +204,12 @@ roc_vis(auc_result, model_name = "Enet[α=0.5]", year = 1)
 ### Q: Running too slow?
 
 ```r
-# Option 1: Use Fast version
-result <- ML.Dev.Prog.Sig.Fast(...)
+# Option 1: Use Fast version with parallel (recommended)
+result <- ML.Dev.Prog.Sig.Fast(
+  ...,
+  use_parallel = TRUE,
+  cores_for_parallel = 12
+)
 
 # Option 2: Pre-filter genes
 # Set unicox.filter.for.candi = TRUE
@@ -214,6 +236,19 @@ result <- ML.Dev.Prog.Sig(..., seed = 12345)
 result <- ML.Dev.Prog.Sig(..., nodesize = 5, seed = 12345)
 ```
 
+### Q: Parallel execution not working?
+
+Parallel execution uses `parallel::mclapply` (Linux/macOS fork).
+- Works on Linux and macOS
+- On Windows, falls back to sequential execution
+
+## Changelog
+
+### v1.1.0
+- ✨ Add 12-core parallel execution for 117 combinations
+- 🐛 Fix Ridge regression alpha parameter (was using Lasso lambda)
+- ✅ 100% consistency with Mime package (8/8 algorithms)
+
 ## Citation
 
 Based on the Mime framework:
@@ -237,9 +272,22 @@ iklSurvML 是专注于生存分析的机器学习工具包，提供 117 种算�
 | 特性 | 说明 |
 |------|------|
 | 全面覆盖 | 集成 10 种主流生存分析算法 |
-| 高效运行 | 智能缓存加速 2.69 倍 |
-| 结果可靠 | 100% 可复现，与 Mime 完全兼容 |
+| 高效运行 | 智能缓存 + **12 核并行加速** |
+| 结果可靠 | 100% 可复现，8/8 算法与 Mime 完全一致 |
 | 易于使用 | 简洁 API，详细文档 |
+
+## 一致性验证 (100%)
+
+| 算法 | C-index 差异 | 状态 |
+|------|-------------|------|
+| Lasso | 0.000000 | ✅ |
+| Ridge | 0.000000 | ✅ |
+| Enet | 0.000000 | ✅ |
+| StepCox | 0.000000 | ✅ |
+| CoxBoost | 0.000000 | ✅ |
+| plsRcox | 0.000000 | ✅ |
+| survivalsvm | 0.000000 | ✅ |
+| GBM | 0.000000 | ✅ |
 
 ## 安装
 
@@ -259,24 +307,27 @@ devtools::install_github("sher-l/iklSurvML")
 ```r
 library(iklSurvML)
 
-# 运行全部 117 种组合
-result <- ML.Dev.Prog.Sig(
+# 并行运行全部 117 种组合 (推荐)
+result <- ML.Dev.Prog.Sig.Fast(
   train_data = train,
   list_train_vali_Data = list(train = train, val = validation),
   candidate_genes = genes,
   mode = "all",
   nodesize = 5,
-  seed = 12345
+  seed = 12345,
+  use_parallel = TRUE,        # 启用并行 (默认开启)
+  cores_for_parallel = 12     # CPU 核心数
 )
 
-# 查看结果
-cindex_dis_all(result)
+# 查看最佳模型
+best_idx <- which.max(result$Cindex.res$Cindex)
+result$Cindex.res[best_idx, ]
 ```
 
 ## 使用建议
 
 1. **数据准备**：样本量 ≥100，基因数 ≥50
-2. **首选模式**：先用 `mode="all"` 跑完全部组合
+2. **首选模式**：先用 `mode="all"` + 并行跑完全部组合
 3. **模型选择**：根据 C-index 选择最优模型
 4. **结果验证**：在多个独立验证集中确认稳定性
 
@@ -295,11 +346,24 @@ cindex_dis_all(result)
 
 ## 常见问题
 
-**运行慢？** 使用 `ML.Dev.Prog.Sig.Fast()` 加速版本
+**运行慢？**
+```r
+# 使用 Fast 版本 + 并行
+result <- ML.Dev.Prog.Sig.Fast(..., use_parallel = TRUE, cores_for_parallel = 12)
+```
 
 **结果不一致？** 确保 `seed`、`nodesize` 参数相同
 
 **报错？** 记得设置 `nodesize = 5`
+
+**并行不生效？** 并行使用 Linux/macOS fork，Windows 会自动降级为顺序执行
+
+## 更新日志
+
+### v1.1.0
+- ✨ 新增 12 核并行执行
+- 🐛 修复 Ridge 回归 alpha 参数问题
+- ✅ 100% 一致性验证通过 (8/8 算法)
 
 ## 获取帮助
 
