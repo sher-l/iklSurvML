@@ -22,7 +22,7 @@ When building survival prediction models, do you face these challenges?
 | Challenge | Solution |
 |-----------|----------|
 | Algorithm selection | Run 117 combinations at once, auto-select the best |
-| Slow performance | **35x faster** (optimized code + 12-core parallel) |
+| Slow performance | **~8x faster** (optimized code) + **12-core parallel** |
 | Non-reproducible | Fixed random seed, 100% reproducible results |
 
 ## Key Features
@@ -56,13 +56,18 @@ Tested against the original Mime package:
 ### 3. Performance Benchmarks
 
 ```
-Single Algorithm (Lasso):
-  Mime:       6.00s
-  iklSurvML:  0.17s   → 35x faster
+Single Algorithm (Lasso, 5-run average):
+  Mime:       1.30s
+  iklSurvML:  0.17s  → ~8x faster
 
 117 Combinations (12-core parallel):
-  Mime:       ~500s (estimated)
-  iklSurvML:  ~40s   → 12x faster
+  Mime:       ~500s (sequential, estimated)
+  iklSurvML:  ~40s  → ~12x faster (parallel)
+
+Key optimizations:
+  - Removed redundant library() calls
+  - Modular code structure
+  - Eliminated unnecessary message() output
 ```
 
 ### 4. Flexible Modes
@@ -284,7 +289,7 @@ iklSurvML 是专注于生存分析的机器学习工具包，提供 117 种算�
 | 特性 | 说明 |
 |------|------|
 | 全面覆盖 | 集成 10 种主流生存分析算法 |
-| 高效运行 | **35 倍加速** (代码优化 + 12核并行) |
+| 高效运行 | **~8 倍加速** (代码优化) + **12 核并行** |
 | 结果可靠 | 100% 可复现，8/8 算法与 Mime 完全一致 |
 | 易于使用 | 简洁 API，详细文档 |
 
@@ -304,13 +309,18 @@ iklSurvML 是专注于生存分析的机器学习工具包，提供 117 种算�
 ## 性能基准
 
 ```
-单算法 (Lasso):
-  Mime:       6.00秒
-  iklSurvML:  0.17秒  → 35倍加速
+单算法 (Lasso, 5次平均):
+  Mime:       1.30秒
+  iklSurvML:  0.17秒  → ~8倍加速
 
 117组合 (12核并行):
-  Mime:       ~500秒 (预估)
-  iklSurvML:  ~40秒   → 12倍加速
+  Mime:       ~500秒 (顺序, 预估)
+  iklSurvML:  ~40秒   → ~12倍加速 (并行)
+
+优化要点:
+  - 移除冗余 library() 调用
+  - 模块化代码结构
+  - 精简 message() 输出
 ```
 
 ## 安装
