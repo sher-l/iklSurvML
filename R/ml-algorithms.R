@@ -155,9 +155,9 @@ train_ridge <- function(est_dd, rid = NULL, seed = 5201314) {
   x1 <- as.matrix(est_dd[, rid])
   x2 <- as.matrix(survival::Surv(est_dd$OS.time, est_dd$OS))
   set.seed(seed)
-  # Match original code: call glmnet first (consumes random numbers), then cv.glmnet
+  # Ridge regression: alpha = 0
   fit <- glmnet::glmnet(x1, x2, family = "cox", alpha = 0, lambda = NULL)
-  cv_fit <- glmnet::cv.glmnet(x1, x2, nfold = 10, family = "cox")
+  cv_fit <- glmnet::cv.glmnet(x1, x2, nfold = 10, family = "cox", alpha = 0)
   return(list(fit = fit, cv.fit = cv_fit))
 }
 
