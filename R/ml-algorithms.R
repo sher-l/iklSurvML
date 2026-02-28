@@ -47,7 +47,8 @@ get_rsf_selected_vars <- function(fit) {
 #' @return Predicted risk scores
 #' @keywords internal
 predict_rsf <- function(fit, newdata) {
-  return(predict(fit, newdata = newdata)$predicted)
+  rs <- predict(fit, newdata = newdata)$predicted
+  return(round(as.numeric(rs), 10))
 }
 
 # ---- Enet (Elastic Net) ----
@@ -488,10 +489,11 @@ predict_survivalsvm <- function(fit, newdata) {
 #' @return C-index value
 #' @keywords internal
 calculate_cindex <- function(rs, data) {
-  tmp <- data.frame(RS = rs, OS.time = data$OS.time, OS = data$OS)
-  return(as.numeric(summary(
-    survival::coxph(survival::Surv(OS.time, OS) ~ RS, tmp)
-  )$concordance[1]))
+  return(as.numeric(
+    survival::concordance(
+      survival::Surv(data$OS.time, data$OS) ~ I(-rs)
+    )$concordance
+  ))
 }
 
 #' Calculate risk scores for validation data
