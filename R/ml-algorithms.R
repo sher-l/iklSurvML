@@ -398,7 +398,7 @@ predict_superpc <- function(fit, cv_fit, train_data, newdata) {
     threshold = cv_fit$thresholds[which.max(cv_fit[["scor"]][1, ])],
     n.components = 1
   )
-  return(as.numeric(ff$v.pred))
+  return(round(as.numeric(ff$v.pred), 10))
 }
 
 # ---- GBM ----
