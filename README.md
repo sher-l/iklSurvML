@@ -51,7 +51,24 @@ Tested against the original Mime package:
 | plsRcox | 0.000000 | ✅ |
 | survivalsvm | 0.000000 | ✅ |
 | GBM | 0.000000 | ✅ |
-| **Total** | **8/8 (100%)** | ✅ |
+| RSF | 0.000000 | ✅ |
+| SuperPC | 0.000000 | ✅ |
+| **Total** | **10/10 (100%)** | ✅ |
+
+**⚠️ Important Notes:**
+
+1. **Deterministic algorithms** (Lasso, Ridge, Enet, StepCox, CoxBoost, plsRcox, survivalsvm, GBM):
+   - Same seed → identical results every time
+   - No model re-training needed between runs
+
+2. **Re-training algorithms** (RSF, SuperPC):
+   - Each run re-trains the model (computationally expensive)
+   - Results are reproducible with fixed seed + stability fixes
+   - Floating-point precision stabilized with `round(..., 10)`
+
+3. **重要说明**:
+   - 确定性算法：相同种子 → 每次结果完全一致，无需重新训练
+   - 重训练算法（RSF、SuperPC）：每次运行会重新训练模型，已通过浮点数精度修复确保可复现性
 
 ### 3. Performance Benchmarks
 
