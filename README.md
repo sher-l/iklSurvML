@@ -60,15 +60,26 @@ Tested against the original Mime package:
 1. **Deterministic algorithms** (Lasso, Ridge, Enet, StepCox, CoxBoost, plsRcox, survivalsvm, GBM):
    - Same seed → identical results every time
    - No model re-training needed between runs
+   - Internal structure (coefficients, plots) completely reproducible
 
-2. **Re-training algorithms** (RSF, SuperPC):
-   - Each run re-trains the model (computationally expensive)
-   - Results are reproducible with fixed seed + stability fixes
-   - Floating-point precision stabilized with `round(..., 10)`
+2. **RSF (Random Survival Forest)**:
+   - ✅ **Predictions stable**: C-index reproducible with `round(..., 10)` fix
+   - ⚠️ **Internal structure varies**: `plot(fit)` shows different VIMP curves each run
+   - Reason: Each run trains a new forest with random tree splits
+   - Test result: VIMP varies by ~0.003-0.005 across runs, but C-index identical
 
-3. **重要说明**:
-   - 确定性算法：相同种子 → 每次结果完全一致，无需重新训练
-   - 重训练算法（RSF、SuperPC）：每次运行会重新训练模型，已通过浮点数精度修复确保可复现性
+3. **SuperPC**:
+   - ✅ **Predictions stable**: C-index reproducible with `round(..., 10)` fix
+   - ✅ **Internal structure stable**: Thresholds and CV curves identical across runs
+   - More deterministic than RSF due to PCA-based approach
+
+4. **重要说明**:
+   - 确定性算法：相同种子 → 每次结果完全一致，内部结构（系数、图表）完全可复现
+   - RSF：预测稳定（C-index 可复现），但 `plot(fit)` 每次显示不同的 VIMP 曲线
+   - SuperPC：预测和内部结构都稳定，比 RSF 更确定
+   - 测试结果：RSF 的 VIMP 在运行间变化约 0.003-0.005，但 C-index 完全一致
+
+**Test Evidence**: See `test/test_rsf_superpc_model_variation.R` for detailed comparison
 
 ### 3. Performance Benchmarks
 
