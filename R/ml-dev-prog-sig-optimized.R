@@ -149,6 +149,7 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
     forest = TRUE,
     seed = seed
   )
+  set.seed(seed)
   rsf_vars <- randomForestSRC::var.select(object = rsf_fit, conservative = "high")$topvars
   message(paste0("  RSF selected ", length(rsf_vars), " variables"))
 
@@ -219,7 +220,7 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
   tmp <- add_model_result(result, ml.res, riskscore, rs, gbm_res, "GBM", list_train_vali_Data)
   result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
-  fit <- train_survivalsvm(est_dd)
+  fit <- train_survivalsvm(est_dd, seed)
   rs <- calculate_risk_scores(val_dd_list, function(x) predict_survivalsvm(fit, x))
   tmp <- add_model_result(result, ml.res, riskscore, rs, fit, "survival - SVM", list_train_vali_Data)
   result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
@@ -283,7 +284,7 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
     tmp <- add_model_result(result, ml.res, riskscore, rs, spc_r, "RSF + SuperPC", list_train_vali_Data)
     result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
-    fit <- train_survivalsvm(est_dd_rsf)
+    fit <- train_survivalsvm(est_dd_rsf, seed)
     rs <- calculate_risk_scores(val_dd_list_rsf, function(x) predict_survivalsvm(fit, x))
     tmp <- add_model_result(result, ml.res, riskscore, rs, fit, "RSF + survival-SVM", list_train_vali_Data)
     result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
@@ -364,7 +365,7 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
       result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
       # StepCox + survival-SVM
-      fit <- train_survivalsvm(est_dd_sc)
+      fit <- train_survivalsvm(est_dd_sc, seed)
       rs <- calculate_risk_scores(val_dd_list_sc, function(x) predict_survivalsvm(fit, x))
       tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0(prefix, " + survival-SVM"), list_train_vali_Data)
       result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
@@ -423,7 +424,7 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
   result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
   # CoxBoost + survival-SVM
-  fit <- train_survivalsvm(est_dd)
+  fit <- train_survivalsvm(est_dd, seed)
   rs <- calculate_risk_scores(val_dd_list, function(x) predict_survivalsvm(fit, x))
   tmp <- add_model_result(result, ml.res, riskscore, rs, fit, "CoxBoost + survival-SVM", list_train_vali_Data)
   result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
@@ -479,7 +480,7 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
     result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
     # Lasso + survival-SVM
-    fit <- train_survivalsvm(est_dd_lasso)
+    fit <- train_survivalsvm(est_dd_lasso, seed)
     rs <- calculate_risk_scores(val_dd_list_lasso, function(x) predict_survivalsvm(fit, x))
     tmp <- add_model_result(result, ml.res, riskscore, rs, fit, "Lasso + survival-SVM", list_train_vali_Data)
     result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
@@ -514,16 +515,23 @@ run_double_algorithm_optimized <- function(est_dd, train_data, val_dd_list,
     Surv <- survival::Surv
     fit1 <- randomForestSRC::rfsrc(Surv(OS.time, OS) ~ ., data = est_dd, ntree = 1000,
                                     nodesize = rf_nodesize, splitrule = "logrank", seed = seed)
+    set.seed(seed)
     selected_vars <- randomForestSRC::var.select(object = fit1, conservative = "high")$topvars
   } else if (double_ml1 == "StepCox") {
     fit1 <- train_stepcox(est_dd, direction_for_stepcox)
     selected_vars <- get_stepcox_selected_vars(fit1)
+    double_ml1_display <- paste0("StepCox[", direction_for_stepcox, "]")
   } else if (double_ml1 == "CoxBoost") {
     fit1 <- train_coxboost(est_dd, seed)
     selected_vars <- pre_var  # CoxBoost uses all features
   } else if (double_ml1 == "Lasso") {
     fit1 <- train_lasso(est_dd, pre_var, seed)
     selected_vars <- get_lasso_selected_vars(fit1)
+  }
+
+  # 构建第一个算法的显示名称（StepCox 需要包含方向信息）
+  if (!exists("double_ml1_display")) {
+    double_ml1_display <- double_ml1
   }
 
   if (length(selected_vars) <= 1) {
@@ -540,50 +548,50 @@ run_double_algorithm_optimized <- function(est_dd, train_data, val_dd_list,
   if (double_ml2 == "CoxBoost") {
     fit2 <- train_coxboost(est_dd2, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_coxboost(fit2, x))
-    model_name <- paste0(double_ml1, " + CoxBoost")
+    model_name <- paste0(double_ml1_display, " + CoxBoost")
   } else if (double_ml2 == "Enet") {
     fit2 <- train_enet(est_dd2, selected_vars, alpha_for_enet, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_enet(fit2, x, selected_vars))
-    model_name <- paste0(double_ml1, " + Enet[α=", alpha_for_enet, "]")
+    model_name <- paste0(double_ml1_display, " + Enet[α=", alpha_for_enet, "]")
   } else if (double_ml2 == "GBM") {
     gbm_res <- train_gbm(est_dd2, seed, cores_for_parallel)
     fit2 <- gbm_res
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_gbm(gbm_res$fit, gbm_res$best, x))
-    model_name <- paste0(double_ml1, " + GBM")
+    model_name <- paste0(double_ml1_display, " + GBM")
   } else if (double_ml2 == "Lasso") {
     fit2 <- train_lasso(est_dd2, selected_vars, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_lasso(fit2, x, selected_vars))
-    model_name <- paste0(double_ml1, " + Lasso")
+    model_name <- paste0(double_ml1_display, " + Lasso")
   } else if (double_ml2 == "plsRcox") {
     fit2 <- train_plsrcox(est_dd2, selected_vars, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_plsrcox(fit2, x))
-    model_name <- paste0(double_ml1, " + plsRcox")
+    model_name <- paste0(double_ml1_display, " + plsRcox")
   } else if (double_ml2 == "Ridge") {
     fit2 <- train_ridge(est_dd2, selected_vars, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_ridge(fit2, x, selected_vars))
-    model_name <- paste0(double_ml1, " + Ridge")
+    model_name <- paste0(double_ml1_display, " + Ridge")
   } else if (double_ml2 == "RSF") {
     set.seed(seed)
     Surv <- survival::Surv
     fit2 <- randomForestSRC::rfsrc(Surv(OS.time, OS) ~ ., data = est_dd2, ntree = 1000,
                                     nodesize = rf_nodesize, splitrule = "logrank", seed = seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict(fit2, newdata = x)$predicted)
-    model_name <- paste0(double_ml1, " + RSF")
+    model_name <- paste0(double_ml1_display, " + RSF")
   } else if (double_ml2 == "StepCox") {
     fit2 <- train_stepcox(est_dd2, direction_for_stepcox)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_stepcox(fit2, x))
-    model_name <- paste0(double_ml1, " + StepCox[", direction_for_stepcox, "]")
+    model_name <- paste0(double_ml1_display, " + StepCox[", direction_for_stepcox, "]")
   } else if (double_ml2 == "SuperPC") {
     spc_res <- train_superpc(est_dd2, seed)
     fit2 <- spc_res
     rs <- lapply(val_dd_list2, function(x) {
       cbind(x[, 1:2], RS = predict_superpc(spc_res$fit, spc_res$cv_fit, est_dd2, x))
     })
-    model_name <- paste0(double_ml1, " + SuperPC")
+    model_name <- paste0(double_ml1_display, " + SuperPC")
   } else if (double_ml2 == "survivalsvm") {
-    fit2 <- train_survivalsvm(est_dd2)
+    fit2 <- train_survivalsvm(est_dd2, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_survivalsvm(fit2, x))
-    model_name <- paste0(double_ml1, " + survival-SVM")
+    model_name <- paste0(double_ml1_display, " + survival-SVM")
   }
 
   rs <- return_id_to_rs(rs, list_train_vali_Data)

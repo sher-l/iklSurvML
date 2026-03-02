@@ -33,9 +33,11 @@ train_rsf <- function(est_dd, rf_nodesize = 5, seed = 5201314) {
 #' Get RSF selected variables
 #'
 #' @param fit RSF model
+#' @param seed Random seed for variable selection
 #' @return Character vector of selected variable names
 #' @keywords internal
-get_rsf_selected_vars <- function(fit) {
+get_rsf_selected_vars <- function(fit, seed = 5201314) {
+  set.seed(seed)
   rid <- randomForestSRC::var.select(object = fit, conservative = "high")
   return(rid$topvars)
 }
@@ -238,9 +240,10 @@ train_coxboost <- function(est_dd, seed = 5201314) {
     as.matrix(est_dd[, -c(1, 2)]),
     trace = TRUE,
     start.penalty = 500,
-    parallel = TRUE
+    parallel = FALSE  # 禁用并行以确保可重复性
   )
 
+  set.seed(seed)
   cv_res <- CoxBoost::cv.CoxBoost(
     est_dd[, "OS.time"],
     est_dd[, "OS"],
@@ -251,6 +254,7 @@ train_coxboost <- function(est_dd, seed = 5201314) {
     penalty = pen$penalty
   )
 
+  set.seed(seed)
   fit <- CoxBoost::CoxBoost(
     est_dd[, "OS.time"],
     est_dd[, "OS"],
@@ -349,6 +353,7 @@ train_superpc <- function(est_dd, seed = 5201314) {
   # Retry on error
   repeat {
     tryCatch({
+      set.seed(seed)  # 确保交叉验证的可重复性
       cv_fit <- superpc::superpc.cv(
         fit, data,
         n.threshold = 20,
@@ -459,9 +464,11 @@ predict_gbm <- function(fit, best, newdata) {
 #' Train survivalsvm model
 #'
 #' @param est_dd Training data with OS.time, OS and features
+#' @param seed Random seed
 #' @return Trained survivalsvm model
 #' @keywords internal
-train_survivalsvm <- function(est_dd) {
+train_survivalsvm <- function(est_dd, seed = 5201314) {
+  set.seed(seed)
   fit <- survivalsvm::survivalsvm(
     survival::Surv(OS.time, OS) ~ .,
     data = est_dd,

@@ -689,6 +689,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
         forest = T,
         seed = seed
       )
+      set.seed(seed)
       rid <- var.select(object = fit, conservative = "high")
       rid <- rid$topvars
 
@@ -986,6 +987,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
           forest = T,
           seed = seed
         )
+        set.seed(seed)
         rid <- var.select(object = fit, conservative = "high")
         rid <- rid$topvars
 
@@ -1283,6 +1285,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
         forest = T,
         seed = seed
       )
+      set.seed(seed)
       rid <- var.select(object = fit, conservative = "high")
       rid <- rid$topvars
 

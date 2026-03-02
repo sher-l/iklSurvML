@@ -385,7 +385,7 @@ run_all_algorithms <- function(est_dd,
 
   # survivalsvm
   message("--- 8. survivalsvm ---")
-  fit <- train_survivalsvm(est_dd)
+  fit <- train_survivalsvm(est_dd, seed)
   rs <- calculate_risk_scores(val_dd_list, function(x) predict_survivalsvm(fit, x))
   rs <- return_id_to_rs(rs, list_train_vali_Data)
   cc <- calculate_cindex_result(rs, "survival-SVM")
@@ -499,7 +499,7 @@ run_single_algorithm <- function(est_dd,
     rs <- calculate_risk_scores(val_dd_list, function(x) predict_gbm(fit, best, x))
   } else if (single_ml == "survivalsvm") {
     message("--- survivalsvm ---")
-    fit <- train_survivalsvm(est_dd)
+    fit <- train_survivalsvm(est_dd, seed)
     rs <- calculate_risk_scores(val_dd_list, function(x) predict_survivalsvm(fit, x))
   } else if (single_ml == "Ridge") {
     message("--- Ridge ---")
@@ -513,16 +513,25 @@ run_single_algorithm <- function(est_dd,
 
   rs <- return_id_to_rs(rs, list_train_vali_Data)
 
-  if (single_ml == "SuperPC") {
-    ml.res[[single_ml]] <- list(fit, cv_fit)
-  } else if (single_ml == "GBM") {
-    ml.res[["GBM"]] <- list(fit = fit, best = best)
+  # 构建正确的模型名称（包含参数信息）
+  if (single_ml == "StepCox") {
+    model_name <- paste0("StepCox[", direction_for_stepcox, "]")
+  } else if (single_ml == "Enet") {
+    model_name <- paste0("Enet[α=", alpha_for_enet, "]")
   } else {
-    ml.res[[single_ml]] <- fit
+    model_name <- single_ml
   }
 
-  riskscore[[single_ml]] <- rs
-  cc <- calculate_cindex_result(rs, single_ml)
+  if (single_ml == "SuperPC") {
+    ml.res[[model_name]] <- list(fit, cv_fit)
+  } else if (single_ml == "GBM") {
+    ml.res[[model_name]] <- list(fit = fit, best = best)
+  } else {
+    ml.res[[model_name]] <- fit
+  }
+
+  riskscore[[model_name]] <- rs
+  cc <- calculate_cindex_result(rs, model_name)
   result <- rbind(result, cc)
 
   return(list(

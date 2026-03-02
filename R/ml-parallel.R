@@ -31,6 +31,7 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
     splitrule = "logrank", importance = TRUE,
     proximity = TRUE, forest = TRUE, seed = seed
   )
+  set.seed(seed)
   rsf_vars <- randomForestSRC::var.select(object = rsf_fit, conservative = "high")$topvars
   cat(sprintf("  RSF: %d vars\n", length(rsf_vars)))
 
@@ -113,7 +114,7 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
   }
 
   tasks[["survival - SVM"]] <- function() {
-    fit <- train_survivalsvm(est_dd)
+    fit <- train_survivalsvm(est_dd, seed)
     rs <- calculate_risk_scores(val_dd_list, function(x) predict_survivalsvm(fit, x))
     list(name = "survival - SVM", rs = rs, fit = fit)
   }
@@ -185,7 +186,7 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
     }
 
     tasks[["RSF + survival-SVM"]] <- function() {
-      fit <- train_survivalsvm(est_rsf)
+      fit <- train_survivalsvm(est_rsf, seed)
       rs <- calculate_risk_scores(val_rsf, function(x) predict_survivalsvm(fit, x))
       list(name = "RSF + survival-SVM", rs = rs, fit = fit)
     }
@@ -265,7 +266,7 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
       }
 
       tasks[[paste0(prefix, " + survival-SVM")]] <- function() {
-        fit <- train_survivalsvm(est_sc)
+        fit <- train_survivalsvm(est_sc, seed)
         rs <- calculate_risk_scores(val_sc, function(x) predict_survivalsvm(fit, x))
         list(name = paste0("StepCox[", d, "] + survival-SVM"), rs = rs, fit = fit)
       }
@@ -326,7 +327,7 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
   }
 
   tasks[["CoxBoost + survival-SVM"]] <- function() {
-    fit <- train_survivalsvm(est_dd)
+    fit <- train_survivalsvm(est_dd, seed)
     rs <- calculate_risk_scores(val_dd_list, function(x) predict_survivalsvm(fit, x))
     list(name = "CoxBoost + survival-SVM", rs = rs, fit = fit)
   }
@@ -379,7 +380,7 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
     }
 
     tasks[["Lasso + survival-SVM"]] <- function() {
-      fit <- train_survivalsvm(est_lasso)
+      fit <- train_survivalsvm(est_lasso, seed)
       rs <- calculate_risk_scores(val_lasso, function(x) predict_survivalsvm(fit, x))
       list(name = "Lasso + survival-SVM", rs = rs, fit = fit)
     }

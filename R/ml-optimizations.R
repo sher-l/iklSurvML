@@ -106,7 +106,7 @@ run_all_algorithms_parallel <- function(est_dd,
     },
 
     survivalsvm = function() {
-      fit <- train_survivalsvm(est_dd)
+      fit <- train_survivalsvm(est_dd, seed)
       rs <- calculate_risk_scores(val_dd_list, function(x) predict_survivalsvm(fit, x))
       rs <- return_id_to_rs(rs, list_train_vali_Data)
       list(model = fit, rs = rs, name = "survival-SVM")
@@ -161,7 +161,7 @@ train_rsf_cached <- function(est_dd, rf_nodesize = 5, seed = 5201314) {
 
   cached_compute(cache_key, function() {
     fit <- train_rsf(est_dd, rf_nodesize, seed)
-    rid <- get_rsf_selected_vars(fit)
+    rid <- get_rsf_selected_vars(fit, seed)
     list(fit = fit, selected_vars = rid)
   })
 }

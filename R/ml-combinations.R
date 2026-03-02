@@ -32,7 +32,7 @@ run_rsf_combination <- function(est_dd,
 
   # Train RSF and get selected variables
   fit_rsf <- train_rsf(est_dd, rf_nodesize, seed)
-  rid <- get_rsf_selected_vars(fit_rsf)
+  rid <- get_rsf_selected_vars(fit_rsf, seed)
 
   if (length(rid) <= 1) {
     warning("The number of selected candidate genes by RSF is less than 2")
@@ -105,7 +105,7 @@ run_rsf_combination <- function(est_dd,
     model_name <- "RSF + SuperPC"
     ml.res[[model_name]] <- list(fit, cv_fit)
   } else if (second_algo == "survivalsvm") {
-    fit <- train_survivalsvm(est_dd2)
+    fit <- train_survivalsvm(est_dd2, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_survivalsvm(fit, x))
     model_name <- "RSF + survival-SVM"
     ml.res[[model_name]] <- fit
@@ -213,7 +213,7 @@ run_stepcox_combination <- function(est_dd,
     model_name <- paste0("StepCox[", direction, "] + SuperPC")
     ml.res[[model_name]] <- list(fit = fit, cv_fit = cv_fit)
   } else if (second_algo == "survivalsvm") {
-    fit <- train_survivalsvm(est_dd2)
+    fit <- train_survivalsvm(est_dd2, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_survivalsvm(fit, x))
     model_name <- paste0("StepCox[", direction, "] + survival-SVM")
     ml.res[[model_name]] <- fit
@@ -348,7 +348,7 @@ run_lasso_combination <- function(est_dd,
     model_name <- "Lasso + SuperPC"
     ml.res[[model_name]] <- list(fit = fit, cv_fit = cv_fit)
   } else if (second_algo == "survivalsvm") {
-    fit <- train_survivalsvm(est_dd2)
+    fit <- train_survivalsvm(est_dd2, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_survivalsvm(fit, x))
     model_name <- "Lasso + survival-SVM"
     ml.res[[model_name]] <- fit
