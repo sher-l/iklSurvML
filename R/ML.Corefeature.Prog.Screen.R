@@ -13,7 +13,7 @@
 #' @export
 #'
 #' @examples
-ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.time, (day), 第三列 OS, (0/1), 从第四列开始是基因表达矩阵，经过了log2(x+1)
+ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day), ??? OS, (0/1), ?????????????????log2(x+1)
                                        candidate_genes,
                                        mode = NULL, # all, single,all_without_SVM
                                        seed = NULL,
@@ -199,23 +199,23 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
 
     SigKMcox <- function(gene_list,
                          inputSet,
-                         KM_pcutoff # KM的筛选阈值
+                         KM_pcutoff # KM?????
     ) {
       print("Starting the data preprocess")
-      ############### 数据预处理#######
+      ############### ?????#######
 
       print("Rejecting a null value")
 
-      # 将空值的基因变成0
+      # ????????0
       # table(is.na(inputSet))
       inputSet[is.na(inputSet)] <- 0
       # table(is.na(inputSet))
       inputSet <- inputSet %>% as.data.frame()
-      inputSet$OS.time <- as.numeric(inputSet$OS.time) # 时间数值化
-      inputSet <- inputSet[inputSet$OS.time > 0, ] # 剔除时间为0
+      inputSet$OS.time <- as.numeric(inputSet$OS.time) # ?????
+      inputSet <- inputSet[inputSet$OS.time > 0, ] # ?????0
 
       # print("Correcting gene set")
-      # #将基因集矫正 策略为转化从ALIAS为ENTREZID， 然后再转化为SYMBOL,避免别名
+      # #?????? ??????ALIAS?ENTREZID? ??????SYMBOL,????
       # gene.df <- bitr(gene_list, fromType = "ALIAS",
       #                 toType = c("ENTREZID"),
       #                 OrgDb = org.Hs.eg.db)
@@ -225,19 +225,19 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
       # gene_list <- gene.df1$SYMBOL
       # write.table(gene_list, "1.ID_transformed_genelist.txt",row.names = F, quote = F)
 
-      # 将genelist和表达矩阵的基因名称格式统一
+      # ?genelist??????????????
       gene_list <- gsub("-", ".", gene_list)
       gene_list <- gsub("_", ".", gene_list)
       colnames(inputSet)[4:ncol(inputSet)] <- gsub("-", ".", colnames(inputSet)[4:ncol(inputSet)])
       colnames(inputSet)[4:ncol(inputSet)] <- gsub("_", ".", colnames(inputSet)[4:ncol(inputSet)])
 
       print("Gets the intersection of genelist and expression profile")
-      # 获取genelist和表达谱的交集
+      # ??genelist???????
       comsa1 <- intersect(colnames(inputSet)[4:ncol(inputSet)], gene_list)
       # write.table(comsa1,"2.intersection_genelist_exprSet_gene.txt", row.names = F, quote = F)
 
       print("Processing the  input representation matrix")
-      # 对输入的表达矩阵进行处理
+      # ????????????
       inputSet <- inputSet[, c("ID", "OS.time", "OS", comsa1)]
 
       inputSet[, c(2:ncol(inputSet))] <- apply(inputSet[, c(2:ncol(inputSet))], 2, as.numeric)
@@ -245,7 +245,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
       # rownames(inputSet) <- inputSet$ID
 
       print("Data preprocessing completed")
-      # 自定义显示进程函数
+      # ?????????
       display.progress <- function(index, totalN, breakN = 20) {
         if (index %% ceiling(totalN / breakN) == 0) {
           cat(paste(round(index * 100 / totalN), "% ", sep = ""))
@@ -253,11 +253,11 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
       }
 
 
-      ############### 单变量cox#######
+      ############### ???cox#######
       print("Stating the univariable cox regression")
 
 
-      # KM估计筛选基因
+      # KM??????
       kmoutput <- NULL
 
       for (i in 1:ncol(inputSet[, 4:ncol(inputSet)])) {
@@ -279,7 +279,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
       print("Finished the KM selection")
 
 
-      # 进行变量筛选
+      # ??????
       selgene <- kmoutput[which(kmoutput$pvalue < KM_pcutoff), "gene"]
       return(selgene)
     }
@@ -287,23 +287,23 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
 
     SigUnicox <- function(gene_list,
                           inputSet,
-                          unicox_pcutoff # 单因素回归的筛选阈值
+                          unicox_pcutoff # ??????????
     ) {
       print("Starting the data preprocess")
-      ############### 数据预处理#######
+      ############### ?????#######
 
       print("Rejecting a null value")
 
-      # 将空值的基因变成0
+      # ????????0
       # table(is.na(inputSet))
       inputSet[is.na(inputSet)] <- 0
       # table(is.na(inputSet))
       inputSet <- inputSet %>% as.data.frame()
-      inputSet$OS.time <- as.numeric(inputSet$OS.time) # 时间数值化
-      inputSet <- inputSet[inputSet$OS.time > 0, ] # 剔除时间为0
+      inputSet$OS.time <- as.numeric(inputSet$OS.time) # ?????
+      inputSet <- inputSet[inputSet$OS.time > 0, ] # ?????0
 
       # print("Correcting gene set")
-      # #将基因集矫正 策略为转化从ALIAS为ENTREZID， 然后再转化为SYMBOL,避免别名
+      # #?????? ??????ALIAS?ENTREZID? ??????SYMBOL,????
       # gene.df <- bitr(gene_list, fromType = "ALIAS",
       #                 toType = c("ENTREZID"),
       #                 OrgDb = org.Hs.eg.db)
@@ -313,19 +313,19 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
       # gene_list <- gene.df1$SYMBOL
       # write.table(gene_list, "1.ID_transformed_genelist.txt",row.names = F, quote = F)
 
-      # 将genelist和表达矩阵的基因名称格式统一
+      # ?genelist??????????????
       gene_list <- gsub("-", ".", gene_list)
       gene_list <- gsub("_", ".", gene_list)
       colnames(inputSet)[4:ncol(inputSet)] <- gsub("-", ".", colnames(inputSet)[4:ncol(inputSet)])
       colnames(inputSet)[4:ncol(inputSet)] <- gsub("_", ".", colnames(inputSet)[4:ncol(inputSet)])
 
       print("Gets the intersection of genelist and expression profile")
-      # 获取genelist和表达谱的交集
+      # ??genelist???????
       comsa1 <- intersect(colnames(inputSet)[4:ncol(inputSet)], gene_list)
       # write.table(comsa1,"2.intersection_genelist_exprSet_gene.txt", row.names = F, quote = F)
 
       print("Processing the  input representation matrix")
-      # 对输入的表达矩阵进行处理
+      # ????????????
       inputSet <- inputSet[, c("ID", "OS.time", "OS", comsa1)]
 
       inputSet[, c(2:ncol(inputSet))] <- apply(inputSet[, c(2:ncol(inputSet))], 2, as.numeric)
@@ -333,7 +333,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
       # rownames(inputSet) <- inputSet$ID
 
       print("Data preprocessing completed")
-      # 自定义显示进程函数
+      # ?????????
       display.progress <- function(index, totalN, breakN = 20) {
         if (index %% ceiling(totalN / breakN) == 0) {
           cat(paste(round(index * 100 / totalN), "% ", sep = ""))
@@ -341,7 +341,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
       }
 
 
-      ############### 单变量cox#######
+      ############### ???cox#######
       print("Stating the univariable cox regression")
 
       unicox <- data.frame()
@@ -375,7 +375,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
       print("Finished the univariable cox regression")
 
 
-      # 进行变量筛选
+      # ??????
       selgene <- unicox[which(unicox$pvalue < unicox_pcutoff), "gene"]
       return(selgene)
       # write.table(selgene,paste("4.unicox_selected_cutoff_",unicox_pcutoff,"_genes.txt",sep = ""),row.names = F, quote = F)
@@ -460,23 +460,23 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
         cvfit <- cv.glmnet(
           x = x1,
           y = x2,
-          nfolds = 10, # 10-fold交叉验证选取最优lambda
-          alpha = 1, # alpha = 1 意味着 lasso
-          family = "cox", # 依赖cox模型
+          nfolds = 10, # 10-fold????????lambda
+          alpha = 1, # alpha = 1 ??? lasso
+          family = "cox", # ??cox??
           maxit = 1000
         )
 
         # optimal lambda
         fea <- rownames(coef(cvfit, s = "lambda.min"))[coef(cvfit, s = "lambda.min")[, 1] != 0]
         if (is.element("(Intercept)", fea)) {
-          lasso_fea <- sort(fea[-1]) # 去掉截距项并排序
+          lasso_fea <- sort(fea[-1]) # ????????
         } else {
           lasso_fea <- sort(fea)
         }
         return(lasso_fea)
       })
 
-      # 输出每次运行的基因集合
+      # ???????????
       lasso_res <- NULL
       for (i in 1:iter.times) {
         lasso_res <- rbind.data.frame(lasso_res,
@@ -493,9 +493,9 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
 
 
 
-      genes <- sort(table(unlist(lasso_fea_list)), decreasing = T) # 根据基因出现的频次排序
+      genes <- sort(table(unlist(lasso_fea_list)), decreasing = T) # ???????????
       freq.cutoff <- iter.times * 0.05
-      genes <- names(genes[genes > freq.cutoff]) # 这里选择出现频次大于50的基因，认为是多次lasso的共识基因. 95%
+      genes <- names(genes[genes > freq.cutoff]) # ??????????50?????????lasso?????. 95%
 
 
       result <- data.frame(
@@ -522,20 +522,20 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
         # 1000 time
         fea_list <- list()
         list.of.seed <- 1:iter.times
-        fea_list <- pblapply(list.of.seed, function(x) { # 大概运行2天
+        fea_list <- pblapply(list.of.seed, function(x) { # ????2?
           set.seed(list.of.seed[x])
           cvfit <- cv.glmnet(
             x = x1,
             y = x2,
-            nfolds = 10, # 10-fold交叉验证选取最优lambda
+            nfolds = 10, # 10-fold????????lambda
             alpha = alpha,
-            family = "cox", # 依赖cox模型
+            family = "cox", # ??cox??
             maxit = 1000
           )
-          # 取出最优lambda
+          # ????lambda
           fea <- rownames(coef(cvfit, s = "lambda.min"))[coef(cvfit, s = "lambda.min")[, 1] != 0]
           if (is.element("(Intercept)", fea)) {
-            lasso_fea <- sort(fea[-1]) # 去掉截距项并排序
+            lasso_fea <- sort(fea[-1]) # ????????
           } else {
             lasso_fea <- sort(fea)
           }
@@ -543,12 +543,12 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
         })
 
 
-        genes <- sort(table(unlist(fea_list)), decreasing = T) # 根据基因出现的频次排序
+        genes <- sort(table(unlist(fea_list)), decreasing = T) # ???????????
         freq.cutoff <- iter.times * 0.05
-        genes <- names(genes[genes > freq.cutoff]) # 这里选择出现频次大于50的基因，认为是多次lasso的共识基因
+        genes <- names(genes[genes > freq.cutoff]) # ??????????50?????????lasso?????
 
         result <- data.frame(
-          method = c(rep(paste0("Enet", "[α=", alpha, "]"), length(genes))),
+          method = c(rep(paste0("Enet", "[?=", alpha, "]"), length(genes))),
           selected.fea = genes
         )
 
@@ -564,14 +564,14 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
 
 
 
-      # 10CV (k-fold crossValidation）
-      svmRFE(input, k = 10, halve.above = 100) # 分割数据，分配随机数
+      # 10CV (k-fold crossValidation?
+      svmRFE(input, k = 10, halve.above = 100) # ??????????
       nfold <- 10
       nrows <- nrow(input)
       folds <- rep(1:nfold, len = nrows)[sample(nrows)]
       folds <- lapply(1:nfold, function(x) which(folds == x))
-      results <- lapply(folds, svmRFE.wrap, input, k = 10, halve.above = 100) # 特征选择
-      top.features <- WriteFeatures(results, input, save = F) # 查看主要变量
+      results <- lapply(folds, svmRFE.wrap, input, k = 10, halve.above = 100) # ????
+      top.features <- WriteFeatures(results, input, save = F) # ??????
       n.features <- nrow(top.features)
       if (n.features > 300) {
         n.svm <- 300
@@ -652,12 +652,12 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
       train_label <- as.numeric(train$OS)
       train_fin <- list(data = train_matrix, label = train_label)
       dtrain <- xgb.DMatrix(data = train_fin$data, label = train_fin$label)
-      # 模型训练
+      # ????
       xgb <- xgboost(
         data = dtrain, max_depth = 6, eta = 0.5,
         objective = "binary:logistic", nround = 25
       )
-      # 重要重要性排序
+      # ???????
       importance <- xgb.importance(train_matrix@Dimnames[[2]], model = xgb)
       head(importance)
       importance$rel.imp <- importance$Gain / max(importance$Gain)
@@ -679,7 +679,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
 
       fit <- rfsrc(Surv(OS.time, OS) ~ .,
         data = est_dd,
-        ntree = 1000, nodesize = rf_nodesize, # 该值建议多调整
+        ntree = 1000, nodesize = rf_nodesize, # ???????
         splitrule = "logrank",
         importance = T,
         proximity = T,
@@ -727,7 +727,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
 
       for (direction in c("both", "backward", "forward")) {
         fit <- stats::step(coxph(Surv(OS.time, OS) ~ ., est_dd), direction = direction)
-        rid <- names(coef(fit)) # 这里不用卡P值，迭代的结果就是可以纳入的基因
+        rid <- names(coef(fit)) # ?????P????????????????
 
         result <- data.frame(
           method = c(rep(paste0("StepCox", "+", direction), length(rid))),
@@ -756,23 +756,23 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
           cvfit <- cv.glmnet(
             x = x1,
             y = x2,
-            nfolds = 10, # 10-fold交叉验证选取最优lambda
-            alpha = 1, # alpha = 1 意味着 lasso
-            family = "cox", # 依赖cox模型
+            nfolds = 10, # 10-fold????????lambda
+            alpha = 1, # alpha = 1 ??? lasso
+            family = "cox", # ??cox??
             maxit = 1000
           )
 
           # optimal lambda
           fea <- rownames(coef(cvfit, s = "lambda.min"))[coef(cvfit, s = "lambda.min")[, 1] != 0]
           if (is.element("(Intercept)", fea)) {
-            lasso_fea <- sort(fea[-1]) # 去掉截距项并排序
+            lasso_fea <- sort(fea[-1]) # ????????
           } else {
             lasso_fea <- sort(fea)
           }
           return(lasso_fea)
         })
 
-        # 输出每次运行的基因集合
+        # ???????????
         lasso_res <- NULL
         for (i in 1:iter.times) {
           lasso_res <- rbind.data.frame(lasso_res,
@@ -789,9 +789,9 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
 
 
 
-        genes <- sort(table(unlist(lasso_fea_list)), decreasing = T) # 根据基因出现的频次排序
+        genes <- sort(table(unlist(lasso_fea_list)), decreasing = T) # ???????????
         freq.cutoff <- iter.times * 0.05
-        genes <- names(genes[genes > freq.cutoff]) # 这里选择出现频次大于50的基因，认为是多次lasso的共识基因. 95%
+        genes <- names(genes[genes > freq.cutoff]) # ??????????50?????????lasso?????. 95%
 
 
         result <- data.frame(
@@ -818,20 +818,20 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
           # 1000 time
           fea_list <- list()
           list.of.seed <- 1:iter.times
-          fea_list <- pblapply(list.of.seed, function(x) { # 大概运行2天
+          fea_list <- pblapply(list.of.seed, function(x) { # ????2?
             set.seed(list.of.seed[x])
             cvfit <- cv.glmnet(
               x = x1,
               y = x2,
-              nfolds = 10, # 10-fold交叉验证选取最优lambda
+              nfolds = 10, # 10-fold????????lambda
               alpha = alpha,
-              family = "cox", # 依赖cox模型
+              family = "cox", # ??cox??
               maxit = 1000
             )
-            # 取出最优lambda
+            # ????lambda
             fea <- rownames(coef(cvfit, s = "lambda.min"))[coef(cvfit, s = "lambda.min")[, 1] != 0]
             if (is.element("(Intercept)", fea)) {
-              lasso_fea <- sort(fea[-1]) # 去掉截距项并排序
+              lasso_fea <- sort(fea[-1]) # ????????
             } else {
               lasso_fea <- sort(fea)
             }
@@ -839,12 +839,12 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
           })
 
 
-          genes <- sort(table(unlist(fea_list)), decreasing = T) # 根据基因出现的频次排序
+          genes <- sort(table(unlist(fea_list)), decreasing = T) # ???????????
           freq.cutoff <- iter.times * 0.05
-          genes <- names(genes[genes > freq.cutoff]) # 这里选择出现频次大于50的基因，认为是多次lasso的共识基因
+          genes <- names(genes[genes > freq.cutoff]) # ??????????50?????????lasso?????
 
           result <- data.frame(
-            method = c(rep(paste0("Enet", "[α=", alpha, "]"), length(genes))),
+            method = c(rep(paste0("Enet", "[?=", alpha, "]"), length(genes))),
             selected.fea = genes
           )
 
@@ -859,14 +859,14 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
 
 
         input <- est_dd[, -1]
-        # 10CV (k-fold crossValidation）
-        svmRFE(input, k = 10, halve.above = 100) # 分割数据，分配随机数
+        # 10CV (k-fold crossValidation?
+        svmRFE(input, k = 10, halve.above = 100) # ??????????
         nfold <- 10
         nrows <- nrow(input)
         folds <- rep(1:nfold, len = nrows)[sample(nrows)]
         folds <- lapply(1:nfold, function(x) which(folds == x))
-        results <- lapply(folds, svmRFE.wrap, input, k = 10, halve.above = 100) # 特征选择
-        top.features <- WriteFeatures(results, input, save = F) # 查看主要变量
+        results <- lapply(folds, svmRFE.wrap, input, k = 10, halve.above = 100) # ????
+        top.features <- WriteFeatures(results, input, save = F) # ??????
         n.features <- nrow(top.features)
         if (n.features > 300) {
           n.svm <- 300
@@ -949,12 +949,12 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
         train_label <- as.numeric(train$OS)
         train_fin <- list(data = train_matrix, label = train_label)
         dtrain <- xgb.DMatrix(data = train_fin$data, label = train_fin$label)
-        # 模型训练
+        # ????
         xgb <- xgboost(
           data = dtrain, max_depth = 6, eta = 0.5,
           objective = "binary:logistic", nround = 25
         )
-        # 重要重要性排序
+        # ???????
         importance <- xgb.importance(train_matrix@Dimnames[[2]], model = xgb)
         head(importance)
         importance$rel.imp <- importance$Gain / max(importance$Gain)
@@ -1058,23 +1058,23 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
         cvfit <- cv.glmnet(
           x = x1,
           y = x2,
-          nfolds = 10, # 10-fold交叉验证选取最优lambda
-          alpha = 1, # alpha = 1 意味着 lasso
-          family = "cox", # 依赖cox模型
+          nfolds = 10, # 10-fold????????lambda
+          alpha = 1, # alpha = 1 ??? lasso
+          family = "cox", # ??cox??
           maxit = 1000
         )
 
         # optimal lambda
         fea <- rownames(coef(cvfit, s = "lambda.min"))[coef(cvfit, s = "lambda.min")[, 1] != 0]
         if (is.element("(Intercept)", fea)) {
-          lasso_fea <- sort(fea[-1]) # 去掉截距项并排序
+          lasso_fea <- sort(fea[-1]) # ????????
         } else {
           lasso_fea <- sort(fea)
         }
         return(lasso_fea)
       })
 
-      # 输出每次运行的基因集合
+      # ???????????
       lasso_res <- NULL
       for (i in 1:iter.times) {
         lasso_res <- rbind.data.frame(lasso_res,
@@ -1091,9 +1091,9 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
 
 
 
-      genes <- sort(table(unlist(lasso_fea_list)), decreasing = T) # 根据基因出现的频次排序
+      genes <- sort(table(unlist(lasso_fea_list)), decreasing = T) # ???????????
       freq.cutoff <- iter.times * 0.05
-      genes <- names(genes[genes > freq.cutoff]) # 这里选择出现频次大于50的基因，认为是多次lasso的共识基因. 95%
+      genes <- names(genes[genes > freq.cutoff]) # ??????????50?????????lasso?????. 95%
 
 
       result <- data.frame(
@@ -1120,20 +1120,20 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
         # 1000 time
         fea_list <- list()
         list.of.seed <- 1:iter.times
-        fea_list <- pblapply(list.of.seed, function(x) { # 大概运行2天
+        fea_list <- pblapply(list.of.seed, function(x) { # ????2?
           set.seed(list.of.seed[x])
           cvfit <- cv.glmnet(
             x = x1,
             y = x2,
-            nfolds = 10, # 10-fold交叉验证选取最优lambda
+            nfolds = 10, # 10-fold????????lambda
             alpha = alpha,
-            family = "cox", # 依赖cox模型
+            family = "cox", # ??cox??
             maxit = 1000
           )
-          # 取出最优lambda
+          # ????lambda
           fea <- rownames(coef(cvfit, s = "lambda.min"))[coef(cvfit, s = "lambda.min")[, 1] != 0]
           if (is.element("(Intercept)", fea)) {
-            lasso_fea <- sort(fea[-1]) # 去掉截距项并排序
+            lasso_fea <- sort(fea[-1]) # ????????
           } else {
             lasso_fea <- sort(fea)
           }
@@ -1141,12 +1141,12 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
         })
 
 
-        genes <- sort(table(unlist(fea_list)), decreasing = T) # 根据基因出现的频次排序
+        genes <- sort(table(unlist(fea_list)), decreasing = T) # ???????????
         freq.cutoff <- iter.times * 0.05
-        genes <- names(genes[genes > freq.cutoff]) # 这里选择出现频次大于50的基因，认为是多次lasso的共识基因
+        genes <- names(genes[genes > freq.cutoff]) # ??????????50?????????lasso?????
 
         result <- data.frame(
-          method = c(rep(paste0("Enet", "[α=", alpha, "]"), length(genes))),
+          method = c(rep(paste0("Enet", "[?=", alpha, "]"), length(genes))),
           selected.fea = genes
         )
 
@@ -1162,14 +1162,14 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
       #
       #
       #
-      # # 10CV (k-fold crossValidation）
-      # svmRFE(input, k = 10, halve.above = 100) #分割数据，分配随机数
+      # # 10CV (k-fold crossValidation?
+      # svmRFE(input, k = 10, halve.above = 100) #??????????
       # nfold = 10
       # nrows = nrow(input)
       # folds = rep(1:nfold, len=nrows)[sample(nrows)]
       # folds = lapply(1:nfold, function(x) which(folds == x))
-      # results = lapply(folds, svmRFE.wrap, input, k=10, halve.above=100) #特征选择
-      # top.features = WriteFeatures(results, input, save=F) #查看主要变量
+      # results = lapply(folds, svmRFE.wrap, input, k=10, halve.above=100) #????
+      # top.features = WriteFeatures(results, input, save=F) #??????
       # n.features = nrow(top.features)
       # if(n.features > 300){
       #   n.svm = 300
@@ -1248,12 +1248,12 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
       train_label <- as.numeric(train$OS)
       train_fin <- list(data = train_matrix, label = train_label)
       dtrain <- xgb.DMatrix(data = train_fin$data, label = train_fin$label)
-      # 模型训练
+      # ????
       xgb <- xgboost(
         data = dtrain, max_depth = 6, eta = 0.5,
         objective = "binary:logistic", nround = 25
       )
-      # 重要重要性排序
+      # ???????
       importance <- xgb.importance(train_matrix@Dimnames[[2]], model = xgb)
       head(importance)
       importance$rel.imp <- importance$Gain / max(importance$Gain)
@@ -1275,7 +1275,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
 
       fit <- rfsrc(Surv(OS.time, OS) ~ .,
         data = est_dd,
-        ntree = 1000, nodesize = rf_nodesize, # 该值建议多调整
+        ntree = 1000, nodesize = rf_nodesize, # ???????
         splitrule = "logrank",
         importance = T,
         proximity = T,
@@ -1323,7 +1323,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
 
       for (direction in c("both", "backward", "forward")) {
         fit <- stats::step(coxph(Surv(OS.time, OS) ~ ., est_dd), direction = direction)
-        rid <- names(coef(fit)) # 这里不用卡P值，迭代的结果就是可以纳入的基因
+        rid <- names(coef(fit)) # ?????P????????????????
 
         result <- data.frame(
           method = c(rep(paste0("StepCox", "+", direction), length(rid))),

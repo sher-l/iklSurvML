@@ -22,7 +22,7 @@ cal_auc_pre.prog.sig(
 
 \item{list_input_data}{A list of the cohorts. Column names are 'ID', 'OS.time', 'OS', and the other variables. OS.time (Day). OS(1/0).}
 
-\item{AUC_time}{c(1,2,3,4,5,6,7,······), for 1 year, 2 years, 3 years......We recommend using the shortest survival time among all queues.}
+\item{AUC_time}{c(1,2,3,4,5,6,7,...), for 1 year, 2 years, 3 years......We recommend using the shortest survival time among all queues.}
 
 \item{auc_cal_method}{'KM', 'NNE'. The default is 'KM'.}
 }

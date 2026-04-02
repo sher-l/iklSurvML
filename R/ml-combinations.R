@@ -60,7 +60,7 @@ run_rsf_combination <- function(est_dd,
     for (alpha in seq(0.1, 0.9, 0.1)) {
       fit <- train_enet(est_dd2, rid, alpha, seed)
       rs <- calculate_risk_scores(val_dd_list2, function(x) predict_enet(fit, x, rid))
-      model_name <- paste0("RSF + Enet[α=", alpha, "]")
+      model_name <- paste0("RSF + Enet[\u03b1=", alpha, "]")
       ml.res[[model_name]] <- fit
       rs <- return_id_to_rs(rs, list_train_vali_Data)
       riskscore[[model_name]] <- rs
@@ -182,7 +182,7 @@ run_stepcox_combination <- function(est_dd,
     for (alpha in seq(0.1, 0.9, 0.1)) {
       fit <- train_enet(est_dd2, rid, alpha, seed)
       rs <- calculate_risk_scores(val_dd_list2, function(x) predict_enet(fit, x, rid))
-      model_name <- paste0("StepCox[", direction, "] + Enet[α=", alpha, "]")
+      model_name <- paste0("StepCox[", direction, "] + Enet[\u03b1=", alpha, "]")
       ml.res[[model_name]] <- fit
       rs <- return_id_to_rs(rs, list_train_vali_Data)
       riskscore[[model_name]] <- rs
@@ -284,7 +284,7 @@ run_coxboost_combination <- function(est_dd,
     for (alpha in seq(0.1, 0.9, 0.1)) {
       fit <- train_enet(est_dd2, rid, alpha, seed)
       rs <- calculate_risk_scores(val_dd_list2, function(x) predict_enet(fit, x, rid))
-      model_name <- paste0("CoxBoost + Enet[α=", alpha, "]")
+      model_name <- paste0("CoxBoost + Enet[\u03b1=", alpha, "]")
       ml.res[[model_name]] <- fit
       rs <- return_id_to_rs(rs, list_train_vali_Data)
       riskscore[[model_name]] <- rs
@@ -435,7 +435,7 @@ run_lasso_combination <- function(est_dd,
     for (alpha in seq(0.1, 0.9, 0.1)) {
       fit <- train_enet(est_dd2, rid, alpha, seed)
       rs <- calculate_risk_scores(val_dd_list2, function(x) predict_enet(fit, x, rid))
-      model_name <- paste0("Lasso + Enet[α=", alpha, "]")
+      model_name <- paste0("Lasso + Enet[\u03b1=", alpha, "]")
       ml.res[[model_name]] <- fit
       rs <- return_id_to_rs(rs, list_train_vali_Data)
       riskscore[[model_name]] <- rs

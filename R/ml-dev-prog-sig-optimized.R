@@ -190,7 +190,7 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
   for (alpha in seq(0.1, 0.9, 0.1)) {
     fit <- train_enet(est_dd, pre_var, alpha, seed)
     rs <- calculate_risk_scores(val_dd_list, function(x) predict_enet(fit, x, pre_var))
-    tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0("Enet[α=", alpha, "]"), list_train_vali_Data)
+    tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0("Enet[\u03b1=", alpha, "]"), list_train_vali_Data)
     result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
   }
 
@@ -258,7 +258,7 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
     for (alpha in seq(0.1, 0.9, 0.1)) {
       fit <- train_enet(est_dd_rsf, rsf_vars, alpha, seed)
       rs <- calculate_risk_scores(val_dd_list_rsf, function(x) predict_enet(fit, x, rsf_vars))
-      tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0("RSF + Enet[α=", alpha, "]"), list_train_vali_Data)
+      tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0("RSF + Enet[\u03b1=", alpha, "]"), list_train_vali_Data)
       result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
     }
 
@@ -303,7 +303,7 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
   }
 
   # ============================================
-  # PHASE 4: StepCox combinations (51 = 3 directions × 17)
+  # PHASE 4: StepCox combinations (51 = 3 directions x 17)
   # ============================================
   message("--- Phase 4: StepCox combinations (51) ---")
 
@@ -325,7 +325,7 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
       for (alpha in seq(0.1, 0.9, 0.1)) {
         fit <- train_enet(est_dd_sc, sc_vars, alpha, seed)
         rs <- calculate_risk_scores(val_dd_list_sc, function(x) predict_enet(fit, x, sc_vars))
-        tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0(prefix, " + Enet[α=", alpha, "]"), list_train_vali_Data)
+        tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0(prefix, " + Enet[\u03b1=", alpha, "]"), list_train_vali_Data)
         result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
       }
 
@@ -385,7 +385,7 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
   for (alpha in seq(0.1, 0.9, 0.1)) {
     fit <- train_enet(est_dd, pre_var, alpha, seed)
     rs <- calculate_risk_scores(val_dd_list, function(x) predict_enet(fit, x, pre_var))
-    tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0("CoxBoost + Enet[α=", alpha, "]"), list_train_vali_Data)
+    tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0("CoxBoost + Enet[\u03b1=", alpha, "]"), list_train_vali_Data)
     result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
   }
 
@@ -556,7 +556,7 @@ run_double_algorithm_optimized <- function(est_dd, train_data, val_dd_list,
   } else if (double_ml2 == "Enet") {
     fit2 <- train_enet(est_dd2, selected_vars, alpha_for_enet, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_enet(fit2, x, selected_vars))
-    model_name <- paste0(double_ml1_display, " + Enet[α=", alpha_for_enet, "]")
+    model_name <- paste0(double_ml1_display, " + Enet[\u03b1=", alpha_for_enet, "]")
   } else if (double_ml2 == "GBM") {
     gbm_res <- train_gbm(est_dd2, seed, cores_for_parallel)
     fit2 <- gbm_res

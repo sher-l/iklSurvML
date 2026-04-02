@@ -2,6 +2,7 @@
 % Please edit documentation in R/TME_deconvolution_all.R
 \name{TME_deconvolution_all}
 \alias{TME_deconvolution_all}
+\alias{tme_deconvolution_all}
 \title{Tumor microenvironment deconvolution using immunedeconv}
 \usage{
 TME_deconvolution_all(

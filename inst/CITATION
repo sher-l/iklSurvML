@@ -1,16 +1,8 @@
-citHeader("To cite MIME in publications use:")
-
-citEntry(
-  entry    = "Article",
-  title    = ,
-  author   = ,
-  journal  = ,
-  year     = ,
-  volume   = ,
-  number   = ,
-  pages    = ,
-  url      = ,
-  textVersion = paste(
-
-  )
+bibentry(
+  bibtype  = "Manual",
+  title    = "iklSurvML: Machine Learning Framework for Survival Analysis",
+  author   = "iklSurvML Authors",
+  year     = "2024",
+  note     = "R package version 1.3.0",
+  url      = "https://github.com/iklSurvML/iklSurvML"
 )

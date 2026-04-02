@@ -7,11 +7,14 @@
 cal_unicox_meta_ml_res(input)
 }
 \arguments{
-\item{input}{A data frame containing the univariable Cox regression result. The row names are the cohort names. The column names are "HR", "pvalue", "LCI", and "HCI".  LCI and HCI are matrices containing, respectively, the lower and higher bounds of the 95% confidence interval of each correlation coefficient.}
-}
-\value{
-The result of the meta-analysis.
+\item{input}{A data frame containing the univariable Cox regression result.
+The row names are the cohort names. The column names are HR, pvalue, LCI, and
+HCI. LCI and HCI are matrices containing, respectively, the lower and higher
+bounds of the 95 percent confidence interval of each correlation coefficient.}
 }
 \description{
 Perform the meta-analysis based on univariable Cox regression result.
+}
+\value{
+The result of the meta-analysis.
 }

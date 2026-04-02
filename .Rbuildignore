@@ -5,3 +5,10 @@
 .Rhistory
 ..Rcheck
 .*\.Rout$
+^External\ data$
+^fig$
+^scripts$
+^\.\.Rcheck$
+^\.gitattributes$
+^\.gitignore$
+^\.git$

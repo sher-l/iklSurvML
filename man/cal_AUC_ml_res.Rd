@@ -23,11 +23,11 @@ cal_AUC_ml_res(
 
 \item{train_data}{the training data using in ML.Dev.Prog.Sig}
 
-\item{inputmatrix.list}{A list contain the dataframes (colnames:ID,OS.time,OS,other genes), log2(x+1)， OS.time(day), OS(0/1)}
+\item{inputmatrix.list}{A list contain the dataframes (colnames:ID,OS.time,OS,other genes), log2(x+1), OS.time(day), OS(0/1)}
 
 \item{mode}{Choose MF models: all, single, double}
 
-\item{AUC_time}{c(1,2,3,4,5,6,7,······), for 1 year, 2 years, 3 years......We recommend using the shortest survival time among all queues.}
+\item{AUC_time}{c(1,2,3,4,5,6,7,...), for 1 year, 2 years, 3 years......We recommend using the shortest survival time among all queues.}
 
 \item{single_ml}{If the mode is set to "single", you must fill in the following models: c("RSF", "Enet", "StepCox","CoxBoost","plsRcox","superpc","GBM","survivalsvm","Ridge","Lasso").}
 

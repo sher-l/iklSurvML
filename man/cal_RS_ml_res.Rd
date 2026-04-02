@@ -21,7 +21,7 @@ cal_RS_ml_res(
 
 \item{train_data}{The training data using in ML.Dev.Prog.Sig}
 
-\item{inputmatrix.list}{A list contain the data frames (colnames:ID,OS.time,OS,other variables), log2(x+1)， OS.time(day), OS(0/1)}
+\item{inputmatrix.list}{A list contain the data frames (colnames:ID,OS.time,OS,other variables), log2(x+1), OS.time(day), OS(0/1)}
 
 \item{mode}{Choose MF models: 'all', 'single', 'double'}
 

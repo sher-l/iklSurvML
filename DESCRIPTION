@@ -8,7 +8,7 @@ Authors@R: c(
 Author: sher-l [cre, aut]
 Maintainer: sher-l <sher-l@users.noreply.github.com>
 Description: An optimized R package for survival analysis using machine learning.
-    Provides 117 combinations of 10 ML algorithms (RSF, Enet, StepCox, CoxBoost,
+    Provides 128 combinations of 10 ML algorithms (RSF, Enet, StepCox, CoxBoost,
     plsRcox, SuperPC, GBM, survival-SVM, Ridge, Lasso) with feature selection
     caching for improved performance. Includes tools for developing prognostic
     models, feature selection, and performance visualization.
@@ -70,8 +70,16 @@ Imports:
     ROCR,
     UpSetR,
     compositions,
-    pbapply
+    pbapply,
+    CoxBoost,
+    digest,
+    future.apply,
+    progress
 Suggests:
+    DOSE,
+    Mime1,
+    immunedeconv,
+    sparrow,
     IOBR,
     knitr,
     rmarkdown,

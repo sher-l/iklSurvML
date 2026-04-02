@@ -2,6 +2,7 @@
 % Please edit documentation in R/HR_com.R
 \name{HR_com}
 \alias{HR_com}
+\alias{hr_com}
 \title{Compare the HR of our model with previously published models}
 \usage{
 HR_com(

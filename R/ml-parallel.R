@@ -84,12 +84,12 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
   # Enet (9)
   for (alpha in seq(0.1, 0.9, 0.1)) {
     local({
-    nm <- paste0("Enet[α=", alpha, "]")
+    nm <- paste0("Enet[\u03b1=", alpha, "]")
     a <- alpha  # Capture
     tasks[[nm]] <<- function() {
       fit <- train_enet(est_dd, pre_var, a, seed)
       rs <- calculate_risk_scores(val_dd_list, function(x) predict_enet(fit, x, pre_var))
-      list(name = paste0("Enet[α=", a, "]"), rs = rs, fit = fit)
+      list(name = paste0("Enet[\u03b1=", a, "]"), rs = rs, fit = fit)
     }
     })
   }
@@ -164,12 +164,12 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
     # RSF + Enet (9)
     for (alpha in seq(0.1, 0.9, 0.1)) {
       local({
-      nm <- paste0("RSF + Enet[α=", alpha, "]")
+      nm <- paste0("RSF + Enet[\u03b1=", alpha, "]")
       a <- alpha
       tasks[[nm]] <<- function() {
         fit <- train_enet(est_rsf, rsf_vars, a, seed)
         rs <- calculate_risk_scores(val_rsf, function(x) predict_enet(fit, x, rsf_vars))
-        list(name = paste0("RSF + Enet[α=", a, "]"), rs = rs, fit = fit)
+        list(name = paste0("RSF + Enet[\u03b1=", a, "]"), rs = rs, fit = fit)
       }
       })
     }
@@ -225,7 +225,7 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
     }
   }
 
-  # ---- Phase 2C: StepCox combinations (51 = 3 × 17) ----
+  # ---- Phase 2C: StepCox combinations (51 = 3 x 17) ----
   for (dir in c("both", "backward", "forward")) {
     local({
     sc_vars <- stepcox_vars[[dir]]
@@ -243,12 +243,12 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
 
       for (alpha in seq(0.1, 0.9, 0.1)) {
           local({
-        nm <- paste0(prefix, " + Enet[α=", alpha, "]")
+        nm <- paste0(prefix, " + Enet[\u03b1=", alpha, "]")
         a <- alpha
         tasks[[nm]] <<- function() {
           fit <- train_enet(est_sc, sc_vars, a, seed)
           rs <- calculate_risk_scores(val_sc, function(x) predict_enet(fit, x, sc_vars))
-          list(name = paste0("StepCox[", d, "] + Enet[α=", a, "]"), rs = rs, fit = fit)
+          list(name = paste0("StepCox[", d, "] + Enet[\u03b1=", a, "]"), rs = rs, fit = fit)
         }
           })
       }
@@ -303,12 +303,12 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
   # CoxBoost + Enet (9)
   for (alpha in seq(0.1, 0.9, 0.1)) {
     local({
-    nm <- paste0("CoxBoost + Enet[α=", alpha, "]")
+    nm <- paste0("CoxBoost + Enet[\u03b1=", alpha, "]")
     a <- alpha
     tasks[[nm]] <<- function() {
       fit <- train_enet(est_dd, pre_var, a, seed)
       rs <- calculate_risk_scores(val_dd_list, function(x) predict_enet(fit, x, pre_var))
-      list(name = paste0("CoxBoost + Enet[α=", a, "]"), rs = rs, fit = fit)
+      list(name = paste0("CoxBoost + Enet[\u03b1=", a, "]"), rs = rs, fit = fit)
     }
     })
   }

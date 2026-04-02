@@ -17,7 +17,8 @@ ML.Dev.Prog.Sig(
   double_ml1 = NULL,
   double_ml2 = NULL,
   nodesize = NULL,
-  seed = NULL
+  seed = NULL,
+  cores_for_parallel = NULL
 )
 }
 \arguments{
@@ -46,6 +47,8 @@ ML.Dev.Prog.Sig(
 \item{nodesize}{The parameter for 'RSF'. The default is 5. You can try the positive number from 5 to 10.}
 
 \item{seed}{The seed you can set as any positive integer, for example, 5201314.}
+
+\item{cores_for_parallel}{Number of cores for parallel processing. Default is 6.}
 }
 \value{
 A list containing the developed predictive model, the risk score of the model in each data, the C index of the model in each data, and the variables used to construct the model.

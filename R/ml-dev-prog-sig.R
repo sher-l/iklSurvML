@@ -331,15 +331,15 @@ run_all_algorithms <- function(est_dd,
   message("--- 2. Enet ---")
   for (alpha in seq(0.1, 0.9, 0.1)) {
     tryCatch({
-      message(paste0("--- 2. Enet[α=", alpha, "] ---"))
+      message(paste0("--- 2. Enet[\u03b1=", alpha, "] ---"))
       set.seed(seed)
       fit <- train_enet(est_dd, pre_var, alpha, seed)
       rs <- calculate_risk_scores(val_dd_list, function(x) predict_enet(fit, x, pre_var))
       rs <- return_id_to_rs(rs, list_train_vali_Data)
-      cc <- calculate_cindex_result(rs, paste0("Enet[α=", alpha, "]"))
+      cc <- calculate_cindex_result(rs, paste0("Enet[\u03b1=", alpha, "]"))
       result <- rbind(result, cc)
-      ml.res[[paste0("Enet[α=", alpha, "]")]] <- fit
-      riskscore[[paste0("Enet[α=", alpha, "]")]] <- rs
+      ml.res[[paste0("Enet[\u03b1=", alpha, "]")]] <- fit
+      riskscore[[paste0("Enet[\u03b1=", alpha, "]")]] <- rs
     }, error = function(e) warning(paste0("Enet[alpha=", alpha, "] failed: ", e$message)))
   }
 
@@ -595,7 +595,7 @@ run_single_algorithm <- function(est_dd,
     fit <- train_rsf(est_dd, rf_nodesize, seed)
     rs <- calculate_risk_scores(val_dd_list, function(x) predict_rsf(fit, x))
   } else if (single_ml == "Enet") {
-    message(paste0("--- Enet[α=", alpha_for_enet, "] ---"))
+    message(paste0("--- Enet[\u03b1=", alpha_for_enet, "] ---"))
     set.seed(seed)
     fit <- train_enet(est_dd, pre_var, alpha_for_enet, seed)
     rs <- calculate_risk_scores(val_dd_list, function(x) predict_enet(fit, x, pre_var))
@@ -646,7 +646,7 @@ run_single_algorithm <- function(est_dd,
   if (single_ml == "StepCox") {
     model_name <- paste0("StepCox[", direction_for_stepcox, "]")
   } else if (single_ml == "Enet") {
-    model_name <- paste0("Enet[α=", alpha_for_enet, "]")
+    model_name <- paste0("Enet[\u03b1=", alpha_for_enet, "]")
   } else {
     model_name <- single_ml
   }
