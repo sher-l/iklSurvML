@@ -278,11 +278,6 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
       return(x)
     })
 
-    list_train_vali_Data <- lapply(list_train_vali_Data, function(x) {
-      x[, c(1:2)] <- apply(x[, c(1:2)], 2, as.factor)
-      return(x)
-    })
-
 
     list_train_vali_Data <- lapply(list_train_vali_Data, function(x) {
       x <- x[!is.na(x$Var) & !is.na(x$Var), ]
@@ -302,7 +297,6 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
 
     train_data <- train_data[, common_feature]
     train_data[, -c(1:2)] <- apply(train_data[, -c(1:2)], 2, as.numeric)
-    train_data[, c(1:2)] <- apply(train_data[, c(1:2)], 2, as.factor)
     rownames(train_data) <- train_data$ID
 
     est_dd <- as.data.frame(train_data)[, common_feature[-1]]

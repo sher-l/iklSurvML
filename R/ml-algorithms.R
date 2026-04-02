@@ -136,7 +136,7 @@ get_lasso_selected_vars <- function(fit) {
 predict_lasso <- function(fit, newdata, rid) {
   return(as.numeric(predict(
     fit,
-    type = "response",
+    type = "link",
     newx = as.matrix(newdata[, rid]),
     s = fit$lambda.min
   )))
@@ -183,7 +183,7 @@ predict_ridge <- function(fit, newdata, rid) {
   }
   return(as.numeric(predict(
     glmnet_fit,
-    type = "response",
+    type = "link",
     newx = as.matrix(newdata[, rid]),
     s = lambda
   )))
@@ -366,10 +366,13 @@ train_superpc <- function(est_dd, seed = 5201314) {
       )
       break
     }, error = function(e) {
-      cat("Error:", conditionMessage(e), "\n")
-      cat("Retrying...\n")
+      warning(paste0("SuperPC CV attempt ", i, " failed: ", conditionMessage(e)))
       Sys.sleep(1)
     })
+  }
+
+  if (is.null(cv_fit)) {
+    stop("SuperPC cross-validation failed after all retry attempts")
   }
 
   return(list(fit = fit, cv_fit = cv_fit))
@@ -497,9 +500,9 @@ predict_survivalsvm <- function(fit, newdata) {
 #' @keywords internal
 calculate_cindex <- function(rs, data) {
   return(as.numeric(
-    survival::concordance(
-      survival::Surv(data$OS.time, data$OS) ~ I(-rs)
-    )$concordance
+    summary(survival::coxph(
+      survival::Surv(data$OS.time, data$OS) ~ rs
+    ))$concordance[1]
   ))
 }
 

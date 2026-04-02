@@ -42,7 +42,6 @@ sig_unicox <- function(gene_list, inputSet, unicox_pcutoff = 0.05) {
   message("Processing the input representation matrix")
   # Process input expression matrix
   inputSet <- inputSet[, c("ID", "OS.time", "OS", comsa1)]
-  inputSet[, c(1:2)] <- apply(inputSet[, c(1:2)], 2, as.factor)
   inputSet[, c(2:ncol(inputSet))] <- apply(inputSet[, c(2:ncol(inputSet))], 2, as.numeric)
   inputSet <- as.data.frame(inputSet)
 

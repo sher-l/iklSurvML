@@ -48,11 +48,6 @@ preprocess_data_list <- function(list_train_vali_Data, common_feature) {
     return(x)
   })
 
-  # Convert ID and OS.time to factor then numeric
-  list_train_vali_Data <- lapply(list_train_vali_Data, function(x) {
-    x[, c(1:2)] <- apply(x[, c(1:2)], 2, as.factor)
-    return(x)
-  })
 
   list_train_vali_Data <- lapply(list_train_vali_Data, function(x) {
     x[, c(2:3)] <- apply(x[, c(2:3)], 2, as.numeric)
@@ -71,14 +66,20 @@ preprocess_data_list <- function(list_train_vali_Data, common_feature) {
     return(x)
   })
 
-  # Replace NA with mean
-  list_train_vali_Data <- lapply(list_train_vali_Data, function(x) {
+  # Replace NA with mean (with warning)
+  for (nm in names(list_train_vali_Data)) {
+    x <- list_train_vali_Data[[nm]]
+    na_count <- sum(is.na(x[, -c(1:3)]))
+    if (na_count > 0) {
+      warning(paste0("Dataset '", nm, "': ", na_count,
+                     " NA values imputed with column means"))
+    }
     x[, -c(1:3)] <- apply(x[, -c(1:3)], 2, function(col) {
       col[is.na(col)] <- mean(col, na.rm = TRUE)
       return(col)
     })
-    return(x)
-  })
+    list_train_vali_Data[[nm]] <- x
+  }
 
   return(list_train_vali_Data)
 }
@@ -92,7 +93,6 @@ preprocess_data_list <- function(list_train_vali_Data, common_feature) {
 preprocess_train_data <- function(train_data, common_feature) {
   train_data <- train_data[, common_feature]
   train_data[, -c(1:3)] <- apply(train_data[, -c(1:3)], 2, as.numeric)
-  train_data[, c(1:2)] <- apply(train_data[, c(1:2)], 2, as.factor)
   train_data[, c(2:3)] <- apply(train_data[, c(2:3)], 2, as.numeric)
   return(train_data)
 }

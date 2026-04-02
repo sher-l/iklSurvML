@@ -26,6 +26,13 @@ run_rsf_combination <- function(est_dd,
                                 alpha_for_enet = NULL,
                                 direction_for_stepcox = NULL,
                                 cores_for_parallel = 6) {
+  valid_algos <- c("CoxBoost", "Enet", "GBM", "Lasso", "plsRcox", "Ridge", "StepCox", "SuperPC", "survivalsvm")
+  if (!second_algo %in% valid_algos) {
+    stop(paste0("RSF combination: second_algo must be one of: ",
+                paste(valid_algos, collapse = ", "), ". Got: '", second_algo, "'"))
+  }
+
+
   result <- data.frame()
   ml.res <- list()
   riskscore <- list()
@@ -141,6 +148,13 @@ run_stepcox_combination <- function(est_dd,
                                     second_algo,
                                     alpha_for_enet = NULL,
                                     cores_for_parallel = 6) {
+  valid_algos <- c("CoxBoost", "Enet", "GBM", "Lasso", "plsRcox", "Ridge", "RSF", "SuperPC", "survivalsvm")
+  if (!second_algo %in% valid_algos) {
+    stop(paste0("StepCox combination: second_algo must be one of: ",
+                paste(valid_algos, collapse = ", "), ". Got: '", second_algo, "'"))
+  }
+
+
   result <- data.frame()
   ml.res <- list()
   riskscore <- list()
@@ -238,7 +252,15 @@ run_coxboost_combination <- function(est_dd,
                                      list_train_vali_Data,
                                      seed = 5201314,
                                      second_algo,
+                                     direction_for_stepcox = "both",
                                      cores_for_parallel = 6) {
+  valid_algos <- c("Enet", "GBM", "Lasso", "plsRcox", "Ridge", "RSF", "StepCox", "SuperPC", "survivalsvm")
+  if (!second_algo %in% valid_algos) {
+    stop(paste0("CoxBoost combination: second_algo must be one of: ",
+                paste(valid_algos, collapse = ", "), ". Got: '", second_algo, "'"))
+  }
+
+
   result <- data.frame()
   ml.res <- list()
   riskscore <- list()
@@ -270,9 +292,59 @@ run_coxboost_combination <- function(est_dd,
       result <- rbind(result, cc)
     }
     return(list(result = result, ml.res = ml.res, riskscore = riskscore))
+  } else if (second_algo == "GBM") {
+    gbm_result <- train_gbm(est_dd2, seed, cores_for_parallel)
+    fit <- gbm_result$fit
+    best <- gbm_result$best
+    rs <- calculate_risk_scores(val_dd_list2, function(x) predict_gbm(fit, best, x))
+    model_name <- "CoxBoost + GBM"
+    ml.res[[model_name]] <- list(fit = fit, best = best)
+  } else if (second_algo == "Lasso") {
+    fit <- train_lasso(est_dd2, rid, seed)
+    rs <- calculate_risk_scores(val_dd_list2, function(x) predict_lasso(fit, x, rid))
+    model_name <- "CoxBoost + Lasso"
+    ml.res[[model_name]] <- fit
+  } else if (second_algo == "plsRcox") {
+    fit <- train_plsrcox(est_dd2, rid, seed)
+    rs <- calculate_risk_scores(val_dd_list2, function(x) predict_plsrcox(fit, x))
+    model_name <- "CoxBoost + plsRcox"
+    ml.res[[model_name]] <- fit
+  } else if (second_algo == "Ridge") {
+    fit <- train_ridge(est_dd2, rid, seed)
+    rs <- calculate_risk_scores(val_dd_list2, function(x) predict_ridge(fit, x, rid))
+    model_name <- "CoxBoost + Ridge"
+    ml.res[[model_name]] <- fit
+  } else if (second_algo == "RSF") {
+    fit <- train_rsf(est_dd2, 5, seed)
+    rs <- calculate_risk_scores(val_dd_list2, function(x) predict_rsf(fit, x))
+    model_name <- "CoxBoost + RSF"
+    ml.res[[model_name]] <- fit
+  } else if (second_algo == "StepCox") {
+    fit <- train_stepcox(est_dd2, direction_for_stepcox)
+    rs <- calculate_risk_scores(val_dd_list2, function(x) predict_stepcox(fit, x))
+    model_name <- paste0("CoxBoost + StepCox[", direction_for_stepcox, "]")
+    ml.res[[model_name]] <- fit
+  } else if (second_algo == "SuperPC") {
+    superpc_result <- train_superpc(est_dd2, seed)
+    fit <- superpc_result$fit
+    cv_fit <- superpc_result$cv_fit
+    rs <- lapply(val_dd_list2, function(x) {
+      cbind(x[, 1:2], RS = predict_superpc(fit, cv_fit, est_dd2, x))
+    })
+    model_name <- "CoxBoost + SuperPC"
+    ml.res[[model_name]] <- list(fit = fit, cv_fit = cv_fit)
+  } else if (second_algo == "survivalsvm") {
+    fit <- train_survivalsvm(est_dd2, seed)
+    rs <- calculate_risk_scores(val_dd_list2, function(x) predict_survivalsvm(fit, x))
+    model_name <- "CoxBoost + survival-SVM"
+    ml.res[[model_name]] <- fit
   }
 
-  # Similar implementations for other combinations...
+  rs <- return_id_to_rs(rs, list_train_vali_Data)
+  riskscore[[model_name]] <- rs
+  cc <- calculate_cindex_result(rs, model_name)
+  result <- rbind(result, cc)
+
   return(list(result = result, ml.res = ml.res, riskscore = riskscore))
 }
 
@@ -289,6 +361,13 @@ run_lasso_combination <- function(est_dd,
                                   seed = 5201314,
                                   second_algo,
                                   direction_for_stepcox = "both") {
+  valid_algos <- c("CoxBoost", "Enet", "GBM", "plsRcox", "Ridge", "RSF", "StepCox", "SuperPC", "survivalsvm")
+  if (!second_algo %in% valid_algos) {
+    stop(paste0("Lasso combination: second_algo must be one of: ",
+                paste(valid_algos, collapse = ", "), ". Got: '", second_algo, "'"))
+  }
+
+
   result <- data.frame()
   ml.res <- list()
   riskscore <- list()
@@ -351,6 +430,23 @@ run_lasso_combination <- function(est_dd,
     fit <- train_survivalsvm(est_dd2, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_survivalsvm(fit, x))
     model_name <- "Lasso + survival-SVM"
+    ml.res[[model_name]] <- fit
+  } else if (second_algo == "Enet") {
+    for (alpha in seq(0.1, 0.9, 0.1)) {
+      fit <- train_enet(est_dd2, rid, alpha, seed)
+      rs <- calculate_risk_scores(val_dd_list2, function(x) predict_enet(fit, x, rid))
+      model_name <- paste0("Lasso + Enet[α=", alpha, "]")
+      ml.res[[model_name]] <- fit
+      rs <- return_id_to_rs(rs, list_train_vali_Data)
+      riskscore[[model_name]] <- rs
+      cc <- calculate_cindex_result(rs, model_name)
+      result <- rbind(result, cc)
+    }
+    return(list(result = result, ml.res = ml.res, riskscore = riskscore))
+  } else if (second_algo == "Ridge") {
+    fit <- train_ridge(est_dd2, rid, seed)
+    rs <- calculate_risk_scores(val_dd_list2, function(x) predict_ridge(fit, x, rid))
+    model_name <- "Lasso + Ridge"
     ml.res[[model_name]] <- fit
   }
 

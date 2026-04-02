@@ -21,11 +21,6 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
     return(x)
   })
 
-  list_train_vali_Data <- lapply(list_train_vali_Data, function(x) {
-    x[, c(1:2)] <- apply(x[, c(1:2)], 2, as.factor)
-    return(x)
-  })
-
 
   list_train_vali_Data <- lapply(list_train_vali_Data, function(x) {
     x <- x[!is.na(x$Var) & !is.na(x$Var), ]

@@ -58,7 +58,11 @@ ML.Dev.Prog.Sig.Fast <- function(train_data,
         identical(c("ID", "OS.time", "OS"), colnames(train_data)[1:3]) &&
         length(candidate_genes) > 0 &&
         length(common_feature) > 3)) {
-    stop("Invalid parameters or data format")
+    stop(paste0("Invalid parameters or data format. Check: ",
+                "mode must be 'all'/'single'/'double', ",
+                "first 3 columns must be ID/OS.time/OS, ",
+                "candidate_genes must exist, ",
+                "common features must exist across all datasets"))
   }
 
   # Preprocess data

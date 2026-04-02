@@ -24,14 +24,14 @@
 #'   "single": use only one algorithm.
 #'   "double": use combination of two algorithms.
 #' @param single_ml One of: "RSF", "Enet", "StepCox", "CoxBoost", "plsRcox",
-#'   "superpc", "GBM", "survivalsvm", "Ridge", "Lasso".
+#'   "SuperPC", "GBM", "survivalsvm", "Ridge", "Lasso".
 #' @param alpha_for_Enet Alpha parameter for Enet (0.1 to 0.9).
 #' @param direction_for_stepcox Direction for StepCox: "both", "backward", or "forward".
 #' @param double_ml1 First algorithm for combination.
 #'   Must be one of: "RSF", "StepCox", "CoxBoost", "Lasso".
 #' @param double_ml2 Second algorithm for combination.
 #'   Must be one of: "RSF", "Enet", "StepCox", "CoxBoost", "plsRcox",
-#'   "superpc", "GBM", "survivalsvm", "Ridge", "Lasso".
+#'   "SuperPC", "GBM", "survivalsvm", "Ridge", "Lasso".
 #' @param nodesize Node size parameter for RSF. Default is 5. Try 5-10.
 #' @param seed Random seed for reproducibility.
 #' @param cores_for_parallel Number of cores for parallel processing. Default is 6.
@@ -116,6 +116,33 @@ ML.Dev.Prog.Sig <- function(train_data,
 
   rf_nodesize <- nodesize
 
+  # ---- Parameter validation ----
+  valid_modes <- c("all", "single", "double")
+  if (!is.null(mode) && !mode %in% valid_modes) {
+    stop(paste0("mode must be one of: ", paste(valid_modes, collapse = ", "),
+                ". Got: '", mode, "'"))
+  }
+
+  if (!is.null(alpha_for_Enet) && (alpha_for_Enet < 0 || alpha_for_Enet > 1)) {
+    stop("alpha_for_Enet must be between 0 and 1")
+  }
+
+  valid_directions <- c("both", "backward", "forward")
+  if (!direction_for_stepcox %in% valid_directions) {
+    stop(paste0("direction_for_stepcox must be one of: ",
+                paste(valid_directions, collapse = ", "),
+                ". Got: '", direction_for_stepcox, "'"))
+  }
+
+  if (is.null(seed)) {
+    seed <- 5201314
+    message("Using default seed: 5201314")
+  }
+
+  if (is.null(rf_nodesize)) {
+    rf_nodesize <- 5
+  }
+
   # ---- Data preprocessing ----
 
   # Replace '-' with '.' in column names
@@ -183,6 +210,15 @@ ML.Dev.Prog.Sig <- function(train_data,
       x[, common_feature[-1]]
     })
     pre_var <- common_feature[-c(1:3)]
+
+    if (length(pre_var) < 2) {
+      stop(paste0("Insufficient features after filtering: ", length(pre_var),
+                  ". Need at least 2 features for ML analysis."))
+    }
+
+    message(paste0("--- Running with ", length(pre_var), " features, ",
+                   nrow(est_dd), " training samples, ",
+                   length(val_dd_list), " validation cohorts ---"))
 
     # ---- Run ML algorithms based on mode ----
     if (mode == "all") {
@@ -257,178 +293,271 @@ run_all_algorithms <- function(est_dd,
 
   # ---- 1. RSF ----
   message("--- 1-1 RSF ---")
-  set.seed(seed)
-  fit <- train_rsf(est_dd, rf_nodesize, seed)
-  rs <- calculate_risk_scores(val_dd_list, function(x) predict_rsf(fit, x))
-  rs <- return_id_to_rs(rs, list_train_vali_Data)
-  cc <- calculate_cindex_result(rs, "RSF")
-  result <- rbind(result, cc)
-  ml.res[["RSF"]] <- fit
-  riskscore[["RSF"]] <- rs
+  tryCatch({
+    set.seed(seed)
+    fit <- train_rsf(est_dd, rf_nodesize, seed)
+    rs <- calculate_risk_scores(val_dd_list, function(x) predict_rsf(fit, x))
+    rs <- return_id_to_rs(rs, list_train_vali_Data)
+    cc <- calculate_cindex_result(rs, "RSF")
+    result <- rbind(result, cc)
+    ml.res[["RSF"]] <- fit
+    riskscore[["RSF"]] <- rs
+  }, error = function(e) warning(paste0("RSF failed: ", e$message)))
 
   # ---- RSF combinations ----
   rsf_combos <- c("CoxBoost", "Enet", "GBM", "Lasso", "plsRcox", "Ridge", "StepCox", "SuperPC", "survivalsvm")
   for (algo in rsf_combos) {
     message(paste0("--- 1-", match(algo, rsf_combos) + 1, " RSF + ", algo, " ---"))
-    combo_result <- run_rsf_combination(
-      est_dd = est_dd,
-      train_data = train_data,
-      val_dd_list = val_dd_list,
-      list_train_vali_Data = list_train_vali_Data,
-      rf_nodesize = rf_nodesize,
-      seed = seed,
-      second_algo = algo,
-      cores_for_parallel = cores_for_parallel
-    )
-    if (!is.null(combo_result)) {
-      result <- rbind(result, combo_result$result)
-      ml.res <- c(ml.res, combo_result$ml.res)
-      riskscore <- c(riskscore, combo_result$riskscore)
-    }
+    tryCatch({
+      combo_result <- run_rsf_combination(
+        est_dd = est_dd,
+        train_data = train_data,
+        val_dd_list = val_dd_list,
+        list_train_vali_Data = list_train_vali_Data,
+        rf_nodesize = rf_nodesize,
+        seed = seed,
+        second_algo = algo,
+        cores_for_parallel = cores_for_parallel
+      )
+      if (!is.null(combo_result)) {
+        result <- rbind(result, combo_result$result)
+        ml.res <- c(ml.res, combo_result$ml.res)
+        riskscore <- c(riskscore, combo_result$riskscore)
+      }
+    }, error = function(e) warning(paste0("RSF+", algo, " failed: ", e$message)))
   }
 
   # ---- 2. Enet ----
   message("--- 2. Enet ---")
   for (alpha in seq(0.1, 0.9, 0.1)) {
-    message(paste0("--- 2. Enet[α=", alpha, "] ---"))
-    set.seed(seed)
-    fit <- train_enet(est_dd, pre_var, alpha, seed)
-    rs <- calculate_risk_scores(val_dd_list, function(x) predict_enet(fit, x, pre_var))
-    rs <- return_id_to_rs(rs, list_train_vali_Data)
-    cc <- calculate_cindex_result(rs, paste0("Enet[α=", alpha, "]"))
-    result <- rbind(result, cc)
-    ml.res[[paste0("Enet[α=", alpha, "]")]] <- fit
-    riskscore[[paste0("Enet[α=", alpha, "]")]] <- rs
+    tryCatch({
+      message(paste0("--- 2. Enet[α=", alpha, "] ---"))
+      set.seed(seed)
+      fit <- train_enet(est_dd, pre_var, alpha, seed)
+      rs <- calculate_risk_scores(val_dd_list, function(x) predict_enet(fit, x, pre_var))
+      rs <- return_id_to_rs(rs, list_train_vali_Data)
+      cc <- calculate_cindex_result(rs, paste0("Enet[α=", alpha, "]"))
+      result <- rbind(result, cc)
+      ml.res[[paste0("Enet[α=", alpha, "]")]] <- fit
+      riskscore[[paste0("Enet[α=", alpha, "]")]] <- rs
+    }, error = function(e) warning(paste0("Enet[alpha=", alpha, "] failed: ", e$message)))
   }
 
   # ---- 3. StepCox ----
   message("--- 3. StepCox ---")
   for (direction in c("both", "backward", "forward")) {
-    message(paste0("--- 3. StepCox[", direction, "] ---"))
-    fit <- train_stepcox(est_dd, direction)
-    rs <- calculate_risk_scores(val_dd_list, function(x) predict_stepcox(fit, x))
-    rs <- return_id_to_rs(rs, list_train_vali_Data)
-    cc <- calculate_cindex_result(rs, paste0("StepCox[", direction, "]"))
-    result <- rbind(result, cc)
-    ml.res[[paste0("StepCox[", direction, "]")]] <- fit
-    riskscore[[paste0("StepCox[", direction, "]")]] <- rs
+    tryCatch({
+      message(paste0("--- 3. StepCox[", direction, "] ---"))
+      fit <- train_stepcox(est_dd, direction)
+      rs <- calculate_risk_scores(val_dd_list, function(x) predict_stepcox(fit, x))
+      rs <- return_id_to_rs(rs, list_train_vali_Data)
+      cc <- calculate_cindex_result(rs, paste0("StepCox[", direction, "]"))
+      result <- rbind(result, cc)
+      ml.res[[paste0("StepCox[", direction, "]")]] <- fit
+      riskscore[[paste0("StepCox[", direction, "]")]] <- rs
+    }, error = function(e) warning(paste0("StepCox[", direction, "] failed: ", e$message)))
   }
 
-  # StepCox[both] combinations
-  message("--- StepCox[both] combinations ---")
+  # StepCox combinations (all 3 directions)
   stepcox_combos <- c("CoxBoost", "Enet", "GBM", "Lasso", "plsRcox", "Ridge", "RSF", "SuperPC", "survivalsvm")
-  for (algo in stepcox_combos) {
-    combo_result <- run_stepcox_combination(
-      est_dd = est_dd,
-      train_data = train_data,
-      val_dd_list = val_dd_list,
-      list_train_vali_Data = list_train_vali_Data,
-      direction = "both",
-      seed = seed,
-      second_algo = algo,
-      cores_for_parallel = cores_for_parallel
-    )
-    if (!is.null(combo_result)) {
-      result <- rbind(result, combo_result$result)
-      ml.res <- c(ml.res, combo_result$ml.res)
-      riskscore <- c(riskscore, combo_result$riskscore)
+  for (direction in c("both", "backward", "forward")) {
+    message(paste0("--- StepCox[", direction, "] combinations ---"))
+    for (algo in stepcox_combos) {
+      tryCatch({
+        combo_result <- run_stepcox_combination(
+          est_dd = est_dd,
+          train_data = train_data,
+          val_dd_list = val_dd_list,
+          list_train_vali_Data = list_train_vali_Data,
+          direction = direction,
+          seed = seed,
+          second_algo = algo,
+          cores_for_parallel = cores_for_parallel
+        )
+        if (!is.null(combo_result)) {
+          result <- rbind(result, combo_result$result)
+          ml.res <- c(ml.res, combo_result$ml.res)
+          riskscore <- c(riskscore, combo_result$riskscore)
+        }
+      }, error = function(e) warning(paste0("StepCox[", direction, "]+", algo, " failed: ", e$message)))
     }
   }
 
   # ---- 4-10. Other single algorithms ----
   # CoxBoost
   message("--- 4. CoxBoost ---")
-  set.seed(seed)
-  fit <- train_coxboost(est_dd, seed)
-  rs <- calculate_risk_scores(val_dd_list, function(x) predict_coxboost(fit, x))
-  rs <- return_id_to_rs(rs, list_train_vali_Data)
-  cc <- calculate_cindex_result(rs, "CoxBoost")
-  result <- rbind(result, cc)
-  ml.res[["CoxBoost"]] <- fit
-  riskscore[["CoxBoost"]] <- rs
+  tryCatch({
+    set.seed(seed)
+    fit <- train_coxboost(est_dd, seed)
+    rs <- calculate_risk_scores(val_dd_list, function(x) predict_coxboost(fit, x))
+    rs <- return_id_to_rs(rs, list_train_vali_Data)
+    cc <- calculate_cindex_result(rs, "CoxBoost")
+    result <- rbind(result, cc)
+    ml.res[["CoxBoost"]] <- fit
+    riskscore[["CoxBoost"]] <- rs
+  }, error = function(e) warning(paste0("CoxBoost failed: ", e$message)))
+
+  # CoxBoost combinations (includes StepCox 3 directions)
+  coxboost_combos <- c("Enet", "GBM", "Lasso", "plsRcox", "Ridge", "RSF", "StepCox", "SuperPC", "survivalsvm")
+  for (algo in coxboost_combos) {
+    if (algo == "StepCox") {
+      for (dir in c("both", "backward", "forward")) {
+        tryCatch({
+          combo_result <- run_coxboost_combination(
+            est_dd = est_dd,
+            train_data = train_data,
+            val_dd_list = val_dd_list,
+            list_train_vali_Data = list_train_vali_Data,
+            seed = seed,
+            second_algo = algo,
+            direction_for_stepcox = dir,
+            cores_for_parallel = cores_for_parallel
+          )
+          if (!is.null(combo_result)) {
+            result <- rbind(result, combo_result$result)
+            ml.res <- c(ml.res, combo_result$ml.res)
+            riskscore <- c(riskscore, combo_result$riskscore)
+          }
+        }, error = function(e) warning(paste0("CoxBoost+StepCox[", dir, "] failed: ", e$message)))
+      }
+    } else {
+      tryCatch({
+        combo_result <- run_coxboost_combination(
+          est_dd = est_dd,
+          train_data = train_data,
+          val_dd_list = val_dd_list,
+          list_train_vali_Data = list_train_vali_Data,
+          seed = seed,
+          second_algo = algo,
+          cores_for_parallel = cores_for_parallel
+        )
+        if (!is.null(combo_result)) {
+          result <- rbind(result, combo_result$result)
+          ml.res <- c(ml.res, combo_result$ml.res)
+          riskscore <- c(riskscore, combo_result$riskscore)
+        }
+      }, error = function(e) warning(paste0("CoxBoost+", algo, " failed: ", e$message)))
+    }
+  }
 
   # plsRcox
   message("--- 5. plsRcox ---")
-  fit <- train_plsrcox(est_dd, pre_var, seed)
-  rs <- calculate_risk_scores(val_dd_list, function(x) predict_plsrcox(fit, x))
-  rs <- return_id_to_rs(rs, list_train_vali_Data)
-  cc <- calculate_cindex_result(rs, "plsRcox")
-  result <- rbind(result, cc)
-  ml.res[["plsRcox"]] <- fit
-  riskscore[["plsRcox"]] <- rs
+  tryCatch({
+    fit <- train_plsrcox(est_dd, pre_var, seed)
+    rs <- calculate_risk_scores(val_dd_list, function(x) predict_plsrcox(fit, x))
+    rs <- return_id_to_rs(rs, list_train_vali_Data)
+    cc <- calculate_cindex_result(rs, "plsRcox")
+    result <- rbind(result, cc)
+    ml.res[["plsRcox"]] <- fit
+    riskscore[["plsRcox"]] <- rs
+  }, error = function(e) warning(paste0("plsRcox failed: ", e$message)))
 
   # SuperPC
   message("--- 6. SuperPC ---")
-  superpc_result <- train_superpc(est_dd, seed)
-  fit <- superpc_result$fit
-  cv_fit <- superpc_result$cv_fit
-  rs <- lapply(val_dd_list, function(x) {
-    cbind(x[, 1:2], RS = predict_superpc(fit, cv_fit, est_dd, x))
-  })
-  rs <- return_id_to_rs(rs, list_train_vali_Data)
-  cc <- calculate_cindex_result(rs, "SuperPC")
-  result <- rbind(result, cc)
-  ml.res[["SuperPC"]] <- list(fit, cv_fit)
-  riskscore[["SuperPC"]] <- rs
+  tryCatch({
+    superpc_result <- train_superpc(est_dd, seed)
+    fit <- superpc_result$fit
+    cv_fit <- superpc_result$cv_fit
+    rs <- lapply(val_dd_list, function(x) {
+      cbind(x[, 1:2], RS = predict_superpc(fit, cv_fit, est_dd, x))
+    })
+    rs <- return_id_to_rs(rs, list_train_vali_Data)
+    cc <- calculate_cindex_result(rs, "SuperPC")
+    result <- rbind(result, cc)
+    ml.res[["SuperPC"]] <- list(fit, cv_fit)
+    riskscore[["SuperPC"]] <- rs
+  }, error = function(e) warning(paste0("SuperPC failed: ", e$message)))
 
   # GBM
   message("--- 7. GBM ---")
-  gbm_result <- train_gbm(est_dd, seed, cores_for_parallel)
-  fit <- gbm_result$fit
-  best <- gbm_result$best
-  rs <- calculate_risk_scores(val_dd_list, function(x) predict_gbm(fit, best, x))
-  rs <- return_id_to_rs(rs, list_train_vali_Data)
-  cc <- calculate_cindex_result(rs, "GBM")
-  result <- rbind(result, cc)
-  ml.res[["GBM"]] <- list(fit = fit, best = best)
-  riskscore[["GBM"]] <- rs
+  tryCatch({
+    gbm_result <- train_gbm(est_dd, seed, cores_for_parallel)
+    fit <- gbm_result$fit
+    best <- gbm_result$best
+    rs <- calculate_risk_scores(val_dd_list, function(x) predict_gbm(fit, best, x))
+    rs <- return_id_to_rs(rs, list_train_vali_Data)
+    cc <- calculate_cindex_result(rs, "GBM")
+    result <- rbind(result, cc)
+    ml.res[["GBM"]] <- list(fit = fit, best = best)
+    riskscore[["GBM"]] <- rs
+  }, error = function(e) warning(paste0("GBM failed: ", e$message)))
 
   # survivalsvm
   message("--- 8. survivalsvm ---")
-  fit <- train_survivalsvm(est_dd, seed)
-  rs <- calculate_risk_scores(val_dd_list, function(x) predict_survivalsvm(fit, x))
-  rs <- return_id_to_rs(rs, list_train_vali_Data)
-  cc <- calculate_cindex_result(rs, "survival-SVM")
-  result <- rbind(result, cc)
-  ml.res[["survival-SVM"]] <- fit
-  riskscore[["survival-SVM"]] <- rs
+  tryCatch({
+    fit <- train_survivalsvm(est_dd, seed)
+    rs <- calculate_risk_scores(val_dd_list, function(x) predict_survivalsvm(fit, x))
+    rs <- return_id_to_rs(rs, list_train_vali_Data)
+    cc <- calculate_cindex_result(rs, "survival-SVM")
+    result <- rbind(result, cc)
+    ml.res[["survival-SVM"]] <- fit
+    riskscore[["survival-SVM"]] <- rs
+  }, error = function(e) warning(paste0("survivalsvm failed: ", e$message)))
 
   # Ridge
   message("--- 9. Ridge ---")
-  fit <- train_ridge(est_dd, pre_var, seed)
-  rs <- calculate_risk_scores(val_dd_list, function(x) predict_ridge(fit, x, pre_var))
-  rs <- return_id_to_rs(rs, list_train_vali_Data)
-  cc <- calculate_cindex_result(rs, "Ridge")
-  result <- rbind(result, cc)
-  ml.res[["Ridge"]] <- fit
-  riskscore[["Ridge"]] <- rs
+  tryCatch({
+    fit <- train_ridge(est_dd, pre_var, seed)
+    rs <- calculate_risk_scores(val_dd_list, function(x) predict_ridge(fit, x, pre_var))
+    rs <- return_id_to_rs(rs, list_train_vali_Data)
+    cc <- calculate_cindex_result(rs, "Ridge")
+    result <- rbind(result, cc)
+    ml.res[["Ridge"]] <- fit
+    riskscore[["Ridge"]] <- rs
+  }, error = function(e) warning(paste0("Ridge failed: ", e$message)))
 
   # Lasso
   message("--- 10. Lasso ---")
-  fit <- train_lasso(est_dd, pre_var, seed)
-  rs <- calculate_risk_scores(val_dd_list, function(x) predict_lasso(fit, x, pre_var))
-  rs <- return_id_to_rs(rs, list_train_vali_Data)
-  cc <- calculate_cindex_result(rs, "Lasso")
-  result <- rbind(result, cc)
-  ml.res[["Lasso"]] <- fit
-  riskscore[["Lasso"]] <- rs
+  tryCatch({
+    fit <- train_lasso(est_dd, pre_var, seed)
+    rs <- calculate_risk_scores(val_dd_list, function(x) predict_lasso(fit, x, pre_var))
+    rs <- return_id_to_rs(rs, list_train_vali_Data)
+    cc <- calculate_cindex_result(rs, "Lasso")
+    result <- rbind(result, cc)
+    ml.res[["Lasso"]] <- fit
+    riskscore[["Lasso"]] <- rs
+  }, error = function(e) warning(paste0("Lasso failed: ", e$message)))
 
-  # Lasso combinations
-  lasso_combos <- c("CoxBoost", "GBM", "plsRcox", "RSF", "StepCox", "SuperPC", "survivalsvm")
+  # Lasso combinations (includes StepCox 3 directions)
+  lasso_combos <- c("CoxBoost", "Enet", "GBM", "plsRcox", "Ridge", "RSF", "StepCox", "SuperPC", "survivalsvm")
   for (algo in lasso_combos) {
-    combo_result <- run_lasso_combination(
-      est_dd = est_dd,
-      train_data = train_data,
-      val_dd_list = val_dd_list,
-      list_train_vali_Data = list_train_vali_Data,
-      pre_var = pre_var,
-      seed = seed,
-      second_algo = algo
-    )
-    if (!is.null(combo_result)) {
-      result <- rbind(result, combo_result$result)
-      ml.res <- c(ml.res, combo_result$ml.res)
-      riskscore <- c(riskscore, combo_result$riskscore)
+    if (algo == "StepCox") {
+      for (dir in c("both", "backward", "forward")) {
+        tryCatch({
+          combo_result <- run_lasso_combination(
+            est_dd = est_dd,
+            train_data = train_data,
+            val_dd_list = val_dd_list,
+            list_train_vali_Data = list_train_vali_Data,
+            pre_var = pre_var,
+            seed = seed,
+            second_algo = algo,
+            direction_for_stepcox = dir
+          )
+          if (!is.null(combo_result)) {
+            result <- rbind(result, combo_result$result)
+            ml.res <- c(ml.res, combo_result$ml.res)
+            riskscore <- c(riskscore, combo_result$riskscore)
+          }
+        }, error = function(e) warning(paste0("Lasso+StepCox[", dir, "] failed: ", e$message)))
+      }
+    } else {
+      tryCatch({
+        combo_result <- run_lasso_combination(
+          est_dd = est_dd,
+          train_data = train_data,
+          val_dd_list = val_dd_list,
+          list_train_vali_Data = list_train_vali_Data,
+          pre_var = pre_var,
+          seed = seed,
+          second_algo = algo
+        )
+        if (!is.null(combo_result)) {
+          result <- rbind(result, combo_result$result)
+          ml.res <- c(ml.res, combo_result$ml.res)
+          riskscore <- c(riskscore, combo_result$riskscore)
+        }
+      }, error = function(e) warning(paste0("Lasso+", algo, " failed: ", e$message)))
     }
   }
 
@@ -568,7 +697,7 @@ run_double_algorithm <- function(est_dd,
     stop("double_ml1 must be one of: RSF, StepCox, CoxBoost, Lasso")
   }
 
-  if (!double_ml2 %in% c("RSF", "Enet", "StepCox", "CoxBoost", "plsRcox", "superpc", "GBM", "survivalsvm", "Ridge", "Lasso")) {
+  if (!double_ml2 %in% c("RSF", "Enet", "StepCox", "CoxBoost", "plsRcox", "SuperPC", "GBM", "survivalsvm", "Ridge", "Lasso")) {
     stop("double_ml2 must be a valid algorithm name")
   }
 
@@ -594,6 +723,17 @@ run_double_algorithm <- function(est_dd,
       direction = direction_for_stepcox,
       seed = seed,
       second_algo = double_ml2,
+      cores_for_parallel = cores_for_parallel
+    )
+  } else if (double_ml1 == "CoxBoost") {
+    combo_result <- run_coxboost_combination(
+      est_dd = est_dd,
+      train_data = train_data,
+      val_dd_list = val_dd_list,
+      list_train_vali_Data = list_train_vali_Data,
+      seed = seed,
+      second_algo = double_ml2,
+      direction_for_stepcox = direction_for_stepcox,
       cores_for_parallel = cores_for_parallel
     )
   } else if (double_ml1 == "Lasso") {

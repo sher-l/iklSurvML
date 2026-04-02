@@ -84,11 +84,6 @@ cal_cindex_pre.prog.sig <- function(use_your_own_collected_sig, # 是否使用�
   })
 
   list_input_data <- lapply(list_input_data, function(x) {
-    x[, c(1:2)] <- apply(x[, c(1:2)], 2, as.factor)
-    return(x)
-  })
-
-  list_input_data <- lapply(list_input_data, function(x) {
     x[, c(2:3)] <- apply(x[, c(2:3)], 2, as.numeric)
     return(x)
   })

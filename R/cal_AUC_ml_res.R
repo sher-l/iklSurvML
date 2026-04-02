@@ -72,11 +72,6 @@ cal_AUC_ml_res <- function(res.by.ML.Dev.Prog.Sig = NULL, # ML.Dev.Prog.Sig, 函
   })
 
   inputmatrix.list <- lapply(inputmatrix.list, function(x) {
-    x[, c(1:2)] <- apply(x[, c(1:2)], 2, as.factor)
-    return(x)
-  })
-
-  inputmatrix.list <- lapply(inputmatrix.list, function(x) {
     x[, c(2:3)] <- apply(x[, c(2:3)], 2, as.numeric)
     return(x)
   })
@@ -371,7 +366,7 @@ cal_AUC_ml_res <- function(res.by.ML.Dev.Prog.Sig = NULL, # ML.Dev.Prog.Sig, 函
 
 
             rs <- lapply(val_dd_list2, function(x) {
-              cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "response", newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))
+              cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "link", newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))
             })
             roc.test <- returnRStoROC(rs.table.list = rs, AUC_time = AUC_time)
 
@@ -414,7 +409,7 @@ cal_AUC_ml_res <- function(res.by.ML.Dev.Prog.Sig = NULL, # ML.Dev.Prog.Sig, 函
 
 
             rs <- lapply(val_dd_list2, function(x) {
-              cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "response", newx = as.matrix(x[, -c(1, 2)]), s = cv.fit$lambda.min)))
+              cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "link", newx = as.matrix(x[, -c(1, 2)]), s = cv.fit$lambda.min)))
             })
             roc.test <- returnRStoROC(rs.table.list = rs, AUC_time = AUC_time)
 
@@ -432,7 +427,7 @@ cal_AUC_ml_res <- function(res.by.ML.Dev.Prog.Sig = NULL, # ML.Dev.Prog.Sig, 函
 
 
             rs <- lapply(val_dd_list2, function(x) {
-              cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "response", newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))
+              cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "link", newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))
             })
             roc.test <- returnRStoROC(rs.table.list = rs, AUC_time = AUC_time)
 
@@ -671,7 +666,7 @@ cal_AUC_ml_res <- function(res.by.ML.Dev.Prog.Sig = NULL, # ML.Dev.Prog.Sig, 函
 
 
             rs <- lapply(val_dd_list2, function(x) {
-              cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "response", newx = as.matrix(x[, -c(1, 2)]), s = cv.fit$lambda.min)))
+              cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "link", newx = as.matrix(x[, -c(1, 2)]), s = cv.fit$lambda.min)))
             })
             roc.test <- returnRStoROC(rs.table.list = rs, AUC_time = AUC_time)
 
@@ -690,7 +685,7 @@ cal_AUC_ml_res <- function(res.by.ML.Dev.Prog.Sig = NULL, # ML.Dev.Prog.Sig, 函
 
 
             rs <- lapply(val_dd_list2, function(x) {
-              cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "response", newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))
+              cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "link", newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))
             })
             roc.test <- returnRStoROC(rs.table.list = rs, AUC_time = AUC_time)
             AUC.rs[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- roc.test
@@ -883,7 +878,7 @@ cal_AUC_ml_res <- function(res.by.ML.Dev.Prog.Sig = NULL, # ML.Dev.Prog.Sig, 函
 
 
             rs <- lapply(val_dd_list2, function(x) {
-              cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "response", newx = as.matrix(x[, -c(1, 2)]), s = cv.fit$lambda.min)))
+              cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "link", newx = as.matrix(x[, -c(1, 2)]), s = cv.fit$lambda.min)))
             })
             roc.test <- returnRStoROC(rs.table.list = rs, AUC_time = AUC_time)
 
@@ -902,7 +897,7 @@ cal_AUC_ml_res <- function(res.by.ML.Dev.Prog.Sig = NULL, # ML.Dev.Prog.Sig, 函
 
 
             rs <- lapply(val_dd_list2, function(x) {
-              cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "response", newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))
+              cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "link", newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))
             })
             roc.test <- returnRStoROC(rs.table.list = rs, AUC_time = AUC_time)
             AUC.rs[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- roc.test

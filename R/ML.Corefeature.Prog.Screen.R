@@ -240,7 +240,6 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
       # 对输入的表达矩阵进行处理
       inputSet <- inputSet[, c("ID", "OS.time", "OS", comsa1)]
 
-      inputSet[, c(1:2)] <- apply(inputSet[, c(1:2)], 2, as.factor)
       inputSet[, c(2:ncol(inputSet))] <- apply(inputSet[, c(2:ncol(inputSet))], 2, as.numeric)
       inputSet <- as.data.frame(inputSet)
       # rownames(inputSet) <- inputSet$ID
@@ -329,7 +328,6 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
       # 对输入的表达矩阵进行处理
       inputSet <- inputSet[, c("ID", "OS.time", "OS", comsa1)]
 
-      inputSet[, c(1:2)] <- apply(inputSet[, c(1:2)], 2, as.factor)
       inputSet[, c(2:ncol(inputSet))] <- apply(inputSet[, c(2:ncol(inputSet))], 2, as.numeric)
       inputSet <- as.data.frame(inputSet)
       # rownames(inputSet) <- inputSet$ID
@@ -431,7 +429,6 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### 第一列ID,第二列OS.
 
     InputMatrix <- InputMatrix[, common_feature]
     InputMatrix[, -c(1:3)] <- apply(InputMatrix[, -c(1:3)], 2, as.numeric)
-    InputMatrix[, c(1:2)] <- apply(InputMatrix[, c(1:2)], 2, as.factor)
     InputMatrix[, c(2:3)] <- apply(InputMatrix[, c(2:3)], 2, as.numeric)
     InputMatrix <- InputMatrix[!is.na(InputMatrix$OS.time) & !is.na(InputMatrix$OS), ]
     InputMatrix <- InputMatrix[InputMatrix$OS.time > 0, ]
