@@ -455,7 +455,7 @@ result <- ML.Dev.Prog.Sig.Fast(..., use_parallel = TRUE, cores_for_parallel = 12
 ## 获取帮助
 
 - Issues: https://github.com/sher-l/iklSurvML/issues
-- 示例数据: `External data/` 目录
+- 示例数据: `External_data/` 目录
 
 ---
 

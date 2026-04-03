@@ -5,7 +5,7 @@
 .Rhistory
 ..Rcheck
 .*\.Rout$
-^External\ data$
+^External_data$
 ^fig$
 ^scripts$
 ^\.\.Rcheck$
