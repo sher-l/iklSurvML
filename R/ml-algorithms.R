@@ -49,7 +49,7 @@ get_rsf_selected_vars <- function(fit, seed = 5201314) {
 #' @return Predicted risk scores
 #' @keywords internal
 predict_rsf <- function(fit, newdata) {
-  rs <- predict(fit, newdata = newdata)$predicted
+  rs <- stats::predict(fit, newdata = newdata)$predicted
   return(round(as.numeric(rs), 10))
 }
 
@@ -82,7 +82,7 @@ train_enet <- function(est_dd, rid = NULL, alpha = 0.5, seed = 5201314) {
 #' @return Predicted risk scores
 #' @keywords internal
 predict_enet <- function(fit, newdata, rid) {
-  return(as.numeric(predict(
+  return(as.numeric(stats::predict(
     fit,
     type = "link",
     newx = as.matrix(newdata[, rid]),
@@ -121,7 +121,7 @@ train_lasso <- function(est_dd, rid = NULL, seed = 5201314) {
 #' @return Character vector of selected variable names
 #' @keywords internal
 get_lasso_selected_vars <- function(fit) {
-  my_coefs <- coef(fit, s = "lambda.min")
+  my_coefs <- stats::coef(fit, s = "lambda.min")
   rid <- my_coefs@Dimnames[[1]][Matrix::which(my_coefs != 0)]
   return(rid)
 }
@@ -134,7 +134,7 @@ get_lasso_selected_vars <- function(fit) {
 #' @return Predicted risk scores
 #' @keywords internal
 predict_lasso <- function(fit, newdata, rid) {
-  return(as.numeric(predict(
+  return(as.numeric(stats::predict(
     fit,
     type = "link",
     newx = as.matrix(newdata[, rid]),
@@ -181,7 +181,7 @@ predict_ridge <- function(fit, newdata, rid) {
     glmnet_fit <- fit
     lambda <- fit$lambda.min
   }
-  return(as.numeric(predict(
+  return(as.numeric(stats::predict(
     glmnet_fit,
     type = "link",
     newx = as.matrix(newdata[, rid]),
@@ -198,7 +198,7 @@ predict_ridge <- function(fit, newdata, rid) {
 #' @return Trained coxph model
 #' @keywords internal
 train_stepcox <- function(est_dd, direction = "both") {
-  fit <- step(
+  fit <- stats::step(
     survival::coxph(survival::Surv(OS.time, OS) ~ ., est_dd),
     direction = direction
   )
@@ -211,7 +211,7 @@ train_stepcox <- function(est_dd, direction = "both") {
 #' @return Character vector of selected variable names
 #' @keywords internal
 get_stepcox_selected_vars <- function(fit) {
-  return(names(coef(fit)))
+  return(names(stats::coef(fit)))
 }
 
 #' Predict with StepCox model
@@ -221,7 +221,7 @@ get_stepcox_selected_vars <- function(fit) {
 #' @return Predicted risk scores
 #' @keywords internal
 predict_stepcox <- function(fit, newdata) {
-  return(predict(fit, type = "risk", newdata = newdata))
+  return(stats::predict(fit, type = "risk", newdata = newdata))
 }
 
 # ---- CoxBoost ----
@@ -272,7 +272,7 @@ train_coxboost <- function(est_dd, seed = 5201314) {
 #' @return Predicted risk scores
 #' @keywords internal
 predict_coxboost <- function(fit, newdata) {
-  return(as.numeric(predict(
+  return(as.numeric(stats::predict(
     fit,
     newdata = newdata[, -c(1, 2)],
     newtime = newdata[, 1],
@@ -321,7 +321,7 @@ train_plsrcox <- function(est_dd, rid = NULL, seed = 5201314) {
 #' @return Predicted risk scores
 #' @keywords internal
 predict_plsrcox <- function(fit, newdata) {
-  return(as.numeric(predict(
+  return(as.numeric(stats::predict(
     fit,
     type = "lp",
     newdata = newdata[, -c(1, 2)]
@@ -459,7 +459,7 @@ train_gbm <- function(est_dd, seed = 5201314, cores_for_parallel = 6) {
 #' @return Predicted risk scores
 #' @keywords internal
 predict_gbm <- function(fit, best, newdata) {
-  return(as.numeric(predict(fit, newdata, n.trees = best, type = "link")))
+  return(as.numeric(stats::predict(fit, newdata, n.trees = best, type = "link")))
 }
 
 # ---- survivalsvm ----
@@ -487,7 +487,7 @@ train_survivalsvm <- function(est_dd, seed = 5201314) {
 #' @return Predicted risk scores
 #' @keywords internal
 predict_survivalsvm <- function(fit, newdata) {
-  return(as.numeric(predict(fit, newdata)$predicted))
+  return(as.numeric(stats::predict(fit, newdata)$predicted))
 }
 
 # ---- Utility functions ----
