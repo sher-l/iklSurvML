@@ -63,9 +63,9 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
   PDL1.Sig <- c("PDL1", "PDCD1")
   # LRRC15.CAF.Sig
   LRRC15.CAF.Sig <- c("MMP11", "COL11A1", "C1QTNF3", "CTHRC1", "COL12A1", "COL10A1", "COL5A2", "GJB2", "THBS2", "AEBP1", "MFAP2", "LRRC15", "PLAU", "ITGA11") # Alias for 'PRLHR' are:'GR3','GPR10','PrRPR'
-  ImmmunCells.Sig <- Mime1::ImmmunCells.Sig
-  TcellExc.Sig <- Mime1::TcellExc.Sig
-  exc.sig <- Mime1::exc.sig
+  ImmmunCells.Sig <- get("ImmmunCells.Sig", envir = asNamespace("iklSurvML"))
+  TcellExc.Sig <- get("TcellExc.Sig", envir = asNamespace("iklSurvML"))
+  exc.sig <- get("exc.sig", envir = asNamespace("iklSurvML"))
 
   ls_sig <- list(
     "ImmmunCells.Sig" = ImmmunCells.Sig,
@@ -233,7 +233,7 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
   sig <- NLRP3.Sig
   sig <- gsub("-", ".", sig)
 
-  gmt <- Mime1::NLRP3.Sig.gmt
+  gmt <- get("NLRP3.Sig.gmt", envir = asNamespace("iklSurvML"))
   all(duplicated(names(gmt))) # no duplicated ids
 
   AUC_NLRP3.Sig <- lapply(list_train_vali_Data, function(g) {
@@ -343,10 +343,10 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
     ls_model <- lapply(method, function(m) {
       if (m == "cancerclass") { # cancerclass is not avaliable in caret
         pData <- data.frame(class = training$Var, sample = rownames(training), row.names = rownames(training))
-        phenoData <- new("AnnotatedDataFrame", data = pData)
+        phenoData <- Biobase::AnnotatedDataFrame(data = pData)
         Sig.Exp <- t(training[, -1])
-        Sig.Exp.train <- ExpressionSet(assayData = as.matrix(Sig.Exp), phenoData = phenoData)
-        predictor <- fit(Sig.Exp.train, method = "welch.test")
+        Sig.Exp.train <- Biobase::ExpressionSet(assayData = as.matrix(Sig.Exp), phenoData = phenoData)
+        predictor <- cancerclass::fit(Sig.Exp.train, method = "welch.test")
         model.tune <- predictor
       } else {
         f <- 5 # f folds resampling
@@ -362,10 +362,10 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
         seeds[[n + 1]] <- sample.int(1000, 1)
 
 
-        ctrl <- trainControl(
+        ctrl <- caret::trainControl(
           method = "repeatedcv",
           number = f, ## 5-folds cv
-          summaryFunction = twoClassSummary, # Use AUC to pick the best model
+          summaryFunction = caret::twoClassSummary, # Use AUC to pick the best model
           classProbs = TRUE,
           repeats = r, ## 10-repeats cv,
           seeds = seeds
@@ -373,7 +373,7 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
 
 
 
-        model.tune <- train(Var ~ .,
+        model.tune <- caret::train(Var ~ .,
           data = training,
           method = m,
           metric = "ROC",
@@ -403,9 +403,9 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
     new <- g[, colnames(g) %in% c("Var", sig)]
     new$Var <- factor(new$Var, levels = c("Y", "N"))
     pData <- data.frame(class = new$Var, sample = rownames(new), row.names = rownames(new))
-    phenoData <- new("AnnotatedDataFrame", data = pData)
+    phenoData <- Biobase::AnnotatedDataFrame(data = pData)
     Sig.Exp <- t(new[, -1])
-    Sig.Exp.test <- ExpressionSet(assayData = as.matrix(Sig.Exp), phenoData = phenoData)
+    Sig.Exp.test <- Biobase::ExpressionSet(assayData = as.matrix(Sig.Exp), phenoData = phenoData)
     prediction <- predict(res$cancerclass, Sig.Exp.test, positive = "N", ngenes = nrow(Sig.Exp), dist = "cor")
     roc <- ROCit::rocit(
       score = as.numeric(prediction@prediction[, "z"]),
@@ -431,7 +431,7 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
   # Available from: https://linkinghub.elsevier.com/retrieve/pii/S0092867418311784
 
   # source("/export3/zhangw/Project_Cross/Project_Mime/data/sig/IMPRES/ImmRes_source.R") ## 'ImmRes_OE.R' was downloaded from https://github.com/livnatje/ImmuneResistance
-  source(system.file("extdata", "ImmRes_source.R", package = "Mime1"))
+  source(system.file("extdata", "ImmRes_source.R", package = "iklSurvML"))
 
   sig <- ls_sig[["TcellExc.Sig"]]
   sig <- gsub("-", ".", sig)
@@ -441,7 +441,7 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
 
   prd <- function(df) {
     r <- list(tpm = t(df[, -1]), genes = colnames(df[, -1]))
-    OE <- get.OE.bulk(
+    OE <- get("get.OE.bulk", mode = "function")(
       r = r,
       gene.sign = gene.sign
     )
@@ -529,14 +529,14 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
   cat("1.10 IMPRES.Sig")
 
 
-  gp <- Mime1::gp_IMPRES
+  gp <- get("gp_IMPRES", envir = asNamespace("iklSurvML"))
 
   gp <- as.data.frame(gp)
   gp1 <- gp
   gp2 <- gp
 
   for (i in c("A", "B")) {
-    gp2[, i] <- str_replace(gp2[, i], "C10orf54", "VSIR") # C10orf54 and VSIR are interchangable
+      gp2[, i] <- stringr::str_replace(gp2[, i], "C10orf54", "VSIR") # C10orf54 and VSIR are interchangable
   }
   g1 <- unique(c(gp1$A, gp1$B))
   g2 <- unique(c(gp2$A, gp2$B))
@@ -644,7 +644,7 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
 
   ### === GSVA ===###
 
-  gmt <- Mime1::IPRES_gmt
+  gmt <- get("IPRES_gmt", envir = asNamespace("iklSurvML"))
   all(duplicated(names(gmt))) # no duplicated ids
 
 
@@ -687,7 +687,7 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
   sig <- TRS.Sig
   cat("1.12 TRS.Sig")
 
-  # gmt <- Mime1::TRS.Sig.gmt
+  # gmt <- get("TRS.Sig.gmt", envir = asNamespace("iklSurvML"))
   all(duplicated(names(gmt))) # no duplicated ids
 
   getTRS.Sig <- lapply(list_train_vali_Data, function(g) {

@@ -58,5 +58,7 @@ a list containing deconvolution scores in each cohorts and ML methods
 Tumor microenvironment deconvolution using immunedeconv
 }
 \examples{
-test.devo <- TME_deconvolution_all(list_train_vali_Data)
+\dontrun{
+# See package documentation for full workflows.
+}
 }

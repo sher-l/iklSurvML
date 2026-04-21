@@ -473,10 +473,23 @@ predict_gbm <- function(fit, best, newdata) {
 #' @keywords internal
 train_survivalsvm <- function(est_dd, seed = 5201314) {
   set.seed(seed)
-  fit <- survivalsvm::survivalsvm(
-    survival::Surv(OS.time, OS) ~ .,
-    data = est_dd,
-    gamma.mu = 1
+  fit <- tryCatch(
+    survivalsvm::survivalsvm(
+      survival::Surv(OS.time, OS) ~ .,
+      data = est_dd,
+      gamma.mu = 1
+    ),
+    error = function(e) {
+      if (!grepl("constraints are inconsistent, no solution!", conditionMessage(e), fixed = TRUE)) {
+        stop(e)
+      }
+      survivalsvm::survivalsvm(
+        survival::Surv(OS.time, OS) ~ .,
+        data = est_dd,
+        gamma.mu = 1,
+        opt.meth = "ipop"
+      )
+    }
   )
   return(fit)
 }

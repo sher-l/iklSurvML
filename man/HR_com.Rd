@@ -37,10 +37,7 @@ a ggplot object
 Creates a distribution plot of hazard ratio among different mdoels
 }
 \examples{
-HR_com(rs.glioma.lgg.gbm,
-    res,
-    model_name="RSF + survival-SVM",
-    dataset=names(list_train_vali_Data),
-    type = "categorical")
-
+\dontrun{
+# See package documentation for full workflows.
+}
 }

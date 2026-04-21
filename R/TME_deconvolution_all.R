@@ -42,8 +42,8 @@ TME_deconvolution_all <- function(inputmatrix.list, # A list contain the datafra
       inner_join(result_table, by = "method_cell_type") %>%
       dplyr::select(-method_cell_type, -method_dataset)
   }
-  set_cibersort_binary(system.file("extdata", "CIBERSORT.R", package = "Mime1"))
-  set_cibersort_mat(system.file("extdata", "LM22.txt", package = "Mime1"))
+  immunedeconv::set_cibersort_binary(system.file("extdata", "CIBERSORT.R", package = "iklSurvML"))
+  immunedeconv::set_cibersort_mat(system.file("extdata", "LM22.txt", package = "iklSurvML"))
   # Deconvolution by immunedeconv
   TME_deconvolution <- function(gene_expression,
                                 deconvolution_method = c("xcell", "epic", "abis", "estimate", "cibersort", "cibersort_abs"),
@@ -59,7 +59,7 @@ TME_deconvolution_all <- function(inputmatrix.list, # A list contain the datafra
     if (all(deconvolution_method %in% deconvolution_methods)) {
       # convert expression set to matrix, if required.
       if (is(gene_expression, "ExpressionSet")) {
-        gene_expression <- gene_expression %>% eset_to_matrix(column)
+        gene_expression <- immunedeconv::eset_to_matrix(gene_expression, column)
       }
 
       if (!is.null(rmgenes)) {

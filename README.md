@@ -191,8 +191,8 @@ result_lasso <- ML.Dev.Prog.Sig(
 | Single models | 20 | Baseline comparisons |
 | RSF + X | 19 | Random forest feature selection |
 | StepCox + X | 51 | Classical statistics + ML |
-| CoxBoost + X | 19 | Boosting feature selection |
-| Lasso + X | 19 | Sparse feature selection |
+| CoxBoost + X | 18 | Boosting feature selection |
+| Lasso + X | 9 | Sparse feature selection |
 | **Total** | **117** | |
 
 **Recommendation:** Run `mode="all"` first, then select the best model by C-index.

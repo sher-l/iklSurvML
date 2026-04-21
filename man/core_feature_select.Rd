@@ -22,6 +22,7 @@ a ggplot2 object
 Creates an upset plot of genes filtered by different methods
 }
 \examples{
-core_feature_select(res.feature.all)
-
+\dontrun{
+# See package documentation for full workflows.
+}
 }

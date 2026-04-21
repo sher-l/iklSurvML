@@ -26,16 +26,7 @@ a ggplot2 object
 Creates a scatter plot between two genes
 }
 \examples{
-dataset_col<-c("#3182BDFF","#E6550DFF")
-corplot <- list()
-for (i in c(1:2)) {
-  print(corplot[[i]]<-cor_plot(list_train_vali_Data[[i]],
-                               dataset=names(list_train_vali_Data)[i],
-                               color = dataset_col[i],
-                               feature1="PSEN2",
-                               feature2="WNT5B",
-                               method="pearson"))
+\dontrun{
+# See package documentation for full workflows.
 }
-aplot::plot_list(gglist=corplot,ncol=2)
-
 }

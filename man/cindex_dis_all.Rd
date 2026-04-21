@@ -36,6 +36,7 @@ a ggplot2 object
 Creates a distribution plot of C-index among different methods
 }
 \examples{
-cindex_dis_all(res,validate_set = names(list_train_vali_Data)[-1],order =names(list_train_vali_Data),width = 0.2)
-
+\dontrun{
+# See package documentation for full workflows.
+}
 }

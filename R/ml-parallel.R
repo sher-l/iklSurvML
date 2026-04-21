@@ -18,13 +18,6 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
             "Use ML.Dev.Prog.Sig() for cross-platform compatibility.")
   }
 
-  # Platform compatibility check
-  if (.Platform$OS.type == "windows") {
-    warning("Parallel execution using mclapply is not supported on Windows. ",
-            "Falling back to sequential execution (mc.cores=1). ",
-            "Use ML.Dev.Prog.Sig() for cross-platform compatibility.")
-  }
-
   # Cap native thread pools before Phase 1 so forked workers do not inherit
   # a multithreaded runtime state from BLAS/OpenMP-backed libraries.
   thread_env <- c(
@@ -284,9 +277,9 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
         paste0(prefix, " + RSF"),
         list_train_vali_Data
       )
-      result <- tmp$result
-      ml.res <- tmp$ml.res
-      riskscore <- tmp$riskscore
+      result <<- tmp$result
+      ml.res <<- tmp$ml.res
+      riskscore <<- tmp$riskscore
 
       tasks[[paste0(prefix, " + CoxBoost")]] <<- function() {
         fit <- train_coxboost(est_sc, seed)

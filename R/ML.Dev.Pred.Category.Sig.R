@@ -57,10 +57,10 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
     ls_model <- lapply(method, function(m) {
       if (m == "cancerclass") { # cancerclass is not avaliable in caret
         pData <- data.frame(class = training$Var, sample = rownames(training), row.names = rownames(training))
-        phenoData <- new("AnnotatedDataFrame", data = pData)
+        phenoData <- Biobase::AnnotatedDataFrame(data = pData)
         Sig.Exp <- t(training[, -1])
-        Sig.Exp.train <- ExpressionSet(assayData = as.matrix(Sig.Exp), phenoData = phenoData)
-        predictor <- fit(Sig.Exp.train, method = "welch.test")
+        Sig.Exp.train <- Biobase::ExpressionSet(assayData = as.matrix(Sig.Exp), phenoData = phenoData)
+        predictor <- cancerclass::fit(Sig.Exp.train, method = "welch.test")
         model.tune <- predictor
       } else {
         f <- 5 # f folds resampling
@@ -76,10 +76,10 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
         seeds[[n + 1]] <- sample.int(1000, 1)
 
 
-        ctrl <- trainControl(
+        ctrl <- caret::trainControl(
           method = "repeatedcv",
           number = f, ## 5-folds cv
-          summaryFunction = twoClassSummary, # Use AUC to pick the best model
+          summaryFunction = caret::twoClassSummary, # Use AUC to pick the best model
           classProbs = TRUE,
           repeats = r, ## 10-repeats cv,
           seeds = seeds
@@ -87,7 +87,7 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
 
 
 
-        model.tune <- train(Var ~ .,
+        model.tune <- caret::train(Var ~ .,
           data = training,
           method = m,
           metric = "ROC",
@@ -169,22 +169,22 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
       if (models[i] == "cancerclass") {
         model.tune <- ls_model[[i]]
         pData <- data.frame(class = validation$Var, sample = rownames(validation), row.names = rownames(validation))
-        phenoData <- new("AnnotatedDataFrame", data = pData)
+        phenoData <- Biobase::AnnotatedDataFrame(data = pData)
         Sig.Exp <- t(validation[, -1])
-        Sig.Exp.test <- ExpressionSet(assayData = as.matrix(Sig.Exp), phenoData = phenoData)
+        Sig.Exp.test <- Biobase::ExpressionSet(assayData = as.matrix(Sig.Exp), phenoData = phenoData)
         prediction <- predict(model.tune, Sig.Exp.test, "N", ngenes = nrow(Sig.Exp), dist = "cor")
-        roc <- roc(
+        roc <- pROC::roc(
           response = prediction@prediction[, "class_membership"],
           predictor = as.numeric(prediction@prediction[, "z"])
         )
-        roc_result <- coords(roc, "best")
+        roc_result <- pROC::coords(roc, "best")
         auc <- data.frame(ROC = as.numeric(roc$auc), Sens = roc_result$sensitivity[1], Spec = roc_result$specificity[1])
       } else {
         model.tune <- ls_model[[i]]
         prob <- predict(model.tune, validation[, -1], type = "prob")
         pre <- predict(model.tune, validation[, -1])
         test_set <- data.frame(obs = validation$Var, N = prob[, "N"], Y = prob[, "Y"], pred = pre)
-        auc <- twoClassSummary(test_set, lev = levels(test_set$obs))
+        auc <- caret::twoClassSummary(test_set, lev = levels(test_set$obs))
       }
       
       return(auc)
@@ -215,9 +215,9 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
         )
       } else {
         pData <- data.frame(class = validation$Var, sample = rownames(validation), row.names = rownames(validation))
-        phenoData <- new("AnnotatedDataFrame", data = pData)
+        phenoData <- Biobase::AnnotatedDataFrame(data = pData)
         Sig.Exp <- t(validation[, -1])
-        Sig.Exp.test <- ExpressionSet(assayData = as.matrix(Sig.Exp), phenoData = phenoData)
+        Sig.Exp.test <- Biobase::ExpressionSet(assayData = as.matrix(Sig.Exp), phenoData = phenoData)
 
         prediction <- predict(ls_model[[models[i]]], Sig.Exp.test, "N", ngenes = nrow(Sig.Exp), dist = "cor")
         roc <- roc(
@@ -317,7 +317,7 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
     # parallel processing
 
 
-    cl <- makePSOCKcluster(cores_for_parallel)
+  cl <- parallel::makePSOCKcluster(cores_for_parallel)
     registerDoParallel(cl)
 
     res.model <- model.Dev(
@@ -325,7 +325,7 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
       method = c("nb", "svmRadialWeights", "kknn", "rf", "adaboost", "LogitBoost", "cancerclass"),
       sig = pre_var
     )
-    stopCluster(cl)
+    parallel::stopCluster(cl)
 
 
 

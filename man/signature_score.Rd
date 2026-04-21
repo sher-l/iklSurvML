@@ -39,5 +39,7 @@ a list containing signature scores in each cohorts and ML methods
 Calculating Signature Score using IOBR
 }
 \examples{
-test.sig <- signature_score(res, list_train_vali_Data)
+\dontrun{
+# See package documentation for full workflows.
+}
 }

@@ -53,7 +53,18 @@ immuno_heatmap<-function(object,# output of ML.Dev.Prog.Sig
   annColors <- list("RiskScore" = viridis::rocket(64),
                     "RiskType" = c("high" = col[2],"low" = col[1]))
   
-  color <- list(greenred(64),bluered(64),turbo(64),inferno(64),viridis(64),magma(64),plasma(64),mako(64),cividis(64),rocket(64))
+  color <- list(
+    greenred(64),
+    bluered(64),
+    scales::col_numeric("turbo", domain = NULL)(seq(0, 1, length.out = 64)),
+    viridis::inferno(64),
+    viridis::viridis(64),
+    viridis::magma(64),
+    viridis::plasma(64),
+    viridis::mako(64),
+    viridis::cividis(64),
+    viridis::rocket(64)
+  )
   
   if (length(hmdat) > 1) {
     plot_list<-list()
@@ -117,5 +128,4 @@ immuno_heatmap<-function(object,# output of ML.Dev.Prog.Sig
   print(p1)
   
 }
-
 

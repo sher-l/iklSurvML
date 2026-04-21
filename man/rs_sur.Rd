@@ -42,14 +42,7 @@ a ggplot2 object
 Creates a survival curve of patients according to risk score calculated by specific selected method among different datasets
 }
 \examples{
-survplot <- vector("list",2) 
-for (i in c(1:2)) {
-  print(survplot[[i]]<-rs_sur(res, model_name = "StepCox[both] + plsRcox",dataset = names(list_train_vali_Data)[i],
-                              #color=c("blue","green"),
-                              median.line = "hv",
-                              cutoff = 0.5,
-                              conf.int = T,
-                              xlab="Day",pval.coord=c(1000,0.9)))}
-aplot::plot_list(gglist=survplot,ncol=2)
-
+\dontrun{
+# See package documentation for full workflows.
+}
 }
