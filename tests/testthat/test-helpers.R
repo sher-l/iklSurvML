@@ -1,8 +1,8 @@
 # Tests for helper functions
 test_that("display_progress works correctly", {
   # Test that display_progress doesn't throw errors
-  expect_invisible(Mime:::display_progress(5, 20, 4))
-  expect_invisible(Mime:::display_progress(10, 100, 10))
+  expect_invisible(iklSurvML:::display_progress(5, 20, 4))
+  expect_invisible(iklSurvML:::display_progress(10, 100, 10))
 })
 
 test_that("return_id_to_rs adds ID column correctly", {
@@ -17,7 +17,7 @@ test_that("return_id_to_rs adds ID column correctly", {
     dataset2 = data.frame(ID = c("patient3", "patient4"))
   )
 
-  result <- Mime:::return_id_to_rs(rs_list, raw_id_list)
+  result <- iklSurvML:::return_id_to_rs(rs_list, raw_id_list)
 
   # Check that ID column is added
   expect_true("ID" %in% colnames(result$dataset1))
@@ -40,9 +40,9 @@ test_that("calculate_cindex returns valid values", {
     OS.time = c(100, 200, 300, 400, 500, 600, 700, 800, 900, 1000),
     OS = c(1, 0, 1, 0, 1, 1, 0, 1, 0, 1)
   )
-  rs <- c(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)
+  rs <- c(0.2, 0.6, 0.3, 0.7, 0.4, 0.5, 0.8, 0.1, 0.55, 0.45)
 
-  cindex <- Mime:::calculate_cindex(rs, test_data)
+  cindex <- iklSurvML:::calculate_cindex(rs, test_data)
 
   # C-index should be between 0 and 1
   expect_gte(cindex, 0)

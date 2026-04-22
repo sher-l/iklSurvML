@@ -19,16 +19,16 @@ cal_RS_pre.prog.sig <- function(use_your_own_collected_sig, # 是否使用您自
   if (use_your_own_collected_sig) {
     sig.input <- collected_sig_table
   } else {
-    pre.prog.sig <- Mime1::pre.prog.sig
+    pre_prog_sig_data <- get("pre.prog.sig", envir = asNamespace("iklSurvML"))
 
-    if (all(type.sig %in% names(pre.prog.sig))) {
+    if (all(type.sig %in% names(pre_prog_sig_data))) {
       if (length(type.sig) == 1) {
-        sig.input <- pre.prog.sig[[type.sig[1]]]
+        sig.input <- pre_prog_sig_data[[type.sig[1]]]
       } else {
-        sig.input <- pre.prog.sig[[type.sig[1]]]
+        sig.input <- pre_prog_sig_data[[type.sig[1]]]
 
         for (i in 2:length(type.sig)) {
-          sig.input <- rbind(sig.input, pre.prog.sig[[type.sig[i]]])
+          sig.input <- rbind(sig.input, pre_prog_sig_data[[type.sig[i]]])
         }
       }
     } else {

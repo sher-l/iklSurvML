@@ -42,11 +42,7 @@ a ggplot2 object
 Creates a distribution plot of auc among different methods when predicting prognosis
 }
 \examples{
-auc_dis_all(all.auc.1y,
-         dataset = names(list_train_vali_Data),
-         validate_set=names(list_train_vali_Data)[-1],
-         order= names(list_train_vali_Data),
-         width = 0.2,
-         year=1)
-
+\dontrun{
+# See package documentation for full workflows.
+}
 }

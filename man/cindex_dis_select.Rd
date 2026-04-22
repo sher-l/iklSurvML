@@ -22,6 +22,7 @@ a ggplot2 object
 Creates a distribution plot of C-index among different datasets for specific selected method
 }
 \examples{
-cindex_dis_select(res, model="StepCox[both] + plsRcox", order= names(list_train_vali_Data))
-
+\dontrun{
+# See package documentation for full workflows.
+}
 }

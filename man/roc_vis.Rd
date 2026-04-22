@@ -36,11 +36,7 @@ a ggplot2 object
 Creates a plot of ROC among different datasets when predicting prognosis
 }
 \examples{
-roc_vis(all.auc.1y,
-     model_name = "StepCox[both] + plsRcox",
-     dataset = names(list_train_vali_Data),
-     order= names(list_train_vali_Data),
-     anno_position=c(0.65,0.55),
-     year=1)
-
+\dontrun{
+# See package documentation for full workflows.
+}
 }

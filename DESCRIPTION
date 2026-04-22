@@ -1,6 +1,6 @@
 Package: iklSurvML
 Type: Package
-Title: Optimized Survival Machine Learning with 128 Algorithm Combinations
+Title: Optimized Survival Machine Learning with 117 Algorithm Combinations
 Version: 1.3.0
 Authors@R: c(
     person("sher-l", email = "sher-l@users.noreply.github.com", role = c("cre", "aut"))
@@ -8,7 +8,7 @@ Authors@R: c(
 Author: sher-l [cre, aut]
 Maintainer: sher-l <sher-l@users.noreply.github.com>
 Description: An optimized R package for survival analysis using machine learning.
-    Provides 128 combinations of 10 ML algorithms (RSF, Enet, StepCox, CoxBoost,
+    Provides 117 combinations of 10 ML algorithms (RSF, Enet, StepCox, CoxBoost,
     plsRcox, SuperPC, GBM, survival-SVM, Ridge, Lasso) with feature selection
     caching for improved performance. Includes tools for developing prognostic
     models, feature selection, and performance visualization.
@@ -24,7 +24,6 @@ Imports:
     BART,
     caret,
     compareC,
-    data.table,
     doParallel,
     dplyr,
     e1071,
@@ -39,34 +38,24 @@ Imports:
     glmnet,
     gplots,
     grid,
-    gridExtra,
+    methods,
     magrittr,
-    meta,
     miscTools,
-    mixOmics,
-    pROC,
     plsRcox,
     randomForestSRC,
-    readr,
-    recipes,
     reshape2,
     scales,
-    stringr,
     superpc,
     survival,
     survivalROC,
     survivalsvm,
     survminer,
     tibble,
-    tidyr,
-    tidyverse,
     tidyselect,
     viridis,
     aplot,
     Ckmeans.1d.dp,
-    Hmisc,
     Boruta,
-    mixtools,
     ROCR,
     UpSetR,
     compositions,
@@ -76,14 +65,19 @@ Imports:
     future.apply,
     progress
 Suggests:
+    Biobase,
     DOSE,
-    Mime1,
+    cancerclass,
     immunedeconv,
     sparrow,
     IOBR,
     knitr,
+    meta,
+    pROC,
     rmarkdown,
+    stringr,
     testthat (>= 3.0.0),
+    xgboost,
     GSEABase,
     GSVA,
     sva
@@ -96,4 +90,3 @@ Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.2.3
 Config/testthat/edition: 3
-VignetteBuilder: knitr

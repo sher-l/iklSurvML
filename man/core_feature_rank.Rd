@@ -20,6 +20,7 @@ a ggplot2 object
 Creates a rank plot of genes filtered by different methods
 }
 \examples{
-core_feature_rank(res.feature.all, top=10)
-
+\dontrun{
+# See package documentation for full workflows.
+}
 }

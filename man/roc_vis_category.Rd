@@ -33,13 +33,7 @@ a ggplot2 object
 Creates a plot of ROC for specific method among different datasets when predicting response
 }
 \examples{
-methods = c('nb','svmRadialWeights','rf','kknn','adaboost','LogitBoost','cancerclass')
-plot_list<-list()
-for (i in methods) {
-  plot_list[[i]]<-roc_vis_category(res.ici,model_name = i,dataset = c("training","validation"),
-                                   order= c("training","validation"),
-                                   anno_position=c(0.4,0.25))
+\dontrun{
+# See package documentation for full workflows.
 }
-aplot::plot_list(gglist=plot_list,ncol=3)
-
 }

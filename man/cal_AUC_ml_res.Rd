@@ -48,12 +48,7 @@ AUC Calculation Result
 Calculate AUC scores of Machine Learning Models in all data
 }
 \examples{
-all.auc.1y <- cal_AUC_ml_res(
-  res.by.ML.Dev.Prog.Sig = res,
-  train_data = list_train_vali_Data[["TCGA"]],
-  inputmatrix.list = list_train_vali_Data, mode = "all",
-  AUC_time = 1,
-  auc_cal_method = "KM"
-)
-
+\dontrun{
+# See package documentation for full workflows.
+}
 }

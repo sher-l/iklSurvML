@@ -108,7 +108,7 @@ train_lasso <- function(est_dd, rid = NULL, seed = 5201314) {
   set.seed(seed)
   fit <- glmnet::cv.glmnet(
     x1, x2,
-    nfold = 10,
+    nfolds = 10,
     family = "cox",
     alpha = 1
   )
@@ -160,7 +160,7 @@ train_ridge <- function(est_dd, rid = NULL, seed = 5201314) {
   set.seed(seed)
   # Ridge regression: alpha = 0
   fit <- glmnet::glmnet(x1, x2, family = "cox", alpha = 0, lambda = NULL)
-  cv_fit <- glmnet::cv.glmnet(x1, x2, nfold = 10, family = "cox", alpha = 0)
+  cv_fit <- glmnet::cv.glmnet(x1, x2, nfolds = 10, family = "cox", alpha = 0)
   return(list(fit = fit, cv.fit = cv_fit))
 }
 
@@ -200,7 +200,8 @@ predict_ridge <- function(fit, newdata, rid) {
 train_stepcox <- function(est_dd, direction = "both") {
   fit <- stats::step(
     survival::coxph(survival::Surv(OS.time, OS) ~ ., est_dd),
-    direction = direction
+    direction = direction,
+    trace = 0
   )
   return(fit)
 }
@@ -238,7 +239,7 @@ train_coxboost <- function(est_dd, seed = 5201314) {
     est_dd[, "OS.time"],
     est_dd[, "OS"],
     as.matrix(est_dd[, -c(1, 2)]),
-    trace = TRUE,
+    trace = FALSE,
     start.penalty = 500,
     parallel = FALSE  # 禁用并行以确保可重复性
   )
@@ -472,10 +473,23 @@ predict_gbm <- function(fit, best, newdata) {
 #' @keywords internal
 train_survivalsvm <- function(est_dd, seed = 5201314) {
   set.seed(seed)
-  fit <- survivalsvm::survivalsvm(
-    survival::Surv(OS.time, OS) ~ .,
-    data = est_dd,
-    gamma.mu = 1
+  fit <- tryCatch(
+    survivalsvm::survivalsvm(
+      survival::Surv(OS.time, OS) ~ .,
+      data = est_dd,
+      gamma.mu = 1
+    ),
+    error = function(e) {
+      if (!grepl("constraints are inconsistent, no solution!", conditionMessage(e), fixed = TRUE)) {
+        stop(e)
+      }
+      survivalsvm::survivalsvm(
+        survival::Surv(OS.time, OS) ~ .,
+        data = est_dd,
+        gamma.mu = 1,
+        opt.meth = "ipop"
+      )
+    }
   )
   return(fit)
 }

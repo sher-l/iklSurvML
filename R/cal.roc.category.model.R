@@ -35,12 +35,12 @@ cal.roc.category.model <- function(res.by.ML.Dev.Pred.Category.Sig, ### 函数�
         )
       } else {
         pData <- data.frame(class = validation$Var, sample = rownames(validation), row.names = rownames(validation))
-        phenoData <- new("AnnotatedDataFrame", data = pData)
+        phenoData <- Biobase::AnnotatedDataFrame(data = pData)
         Sig.Exp <- t(validation[, -1])
-        Sig.Exp.test <- ExpressionSet(assayData = as.matrix(Sig.Exp), phenoData = phenoData)
+        Sig.Exp.test <- Biobase::ExpressionSet(assayData = as.matrix(Sig.Exp), phenoData = phenoData)
 
         prediction <- predict(ls_model[[models[i]]], Sig.Exp.test, "N", ngenes = nrow(Sig.Exp), dist = "cor")
-        roc <- roc(
+        roc <- pROC::roc(
           response = prediction@prediction[, "class_membership"],
           predictor = as.numeric(prediction@prediction[, "z"])
         )

@@ -25,21 +25,21 @@ cal.auc.category.model <- function(res.by.ML.Dev.Pred.Category.Sig, ### 函数�
     auc <- lapply(ls_model, function(model.tune) {
       if (class(model.tune) == "predictor") {
         pData <- data.frame(class = validation$Var, sample = rownames(validation), row.names = rownames(validation))
-        phenoData <- new("AnnotatedDataFrame", data = pData)
+        phenoData <- Biobase::AnnotatedDataFrame(data = pData)
         Sig.Exp <- t(validation[, -1])
-        Sig.Exp.test <- ExpressionSet(assayData = as.matrix(Sig.Exp), phenoData = phenoData)
+        Sig.Exp.test <- Biobase::ExpressionSet(assayData = as.matrix(Sig.Exp), phenoData = phenoData)
         prediction <- predict(model.tune, Sig.Exp.test, "N", ngenes = nrow(Sig.Exp), dist = "cor")
-        roc <- roc(
+        roc <- pROC::roc(
           response = prediction@prediction[, "class_membership"],
           predictor = as.numeric(prediction@prediction[, "z"])
         )
-        roc_result <- coords(roc, "best")
+        roc_result <- pROC::coords(roc, "best")
         auc <- data.frame(ROC = as.numeric(roc$auc), Sens = roc_result$sensitivity[1], Spec = roc_result$specificity[1])
       } else {
         prob <- predict(model.tune, validation[, -1], type = "prob")
         pre <- predict(model.tune, validation[, -1])
         test_set <- data.frame(obs = validation$Var, N = prob[, "N"], Y = prob[, "Y"], pred = pre)
-        auc <- twoClassSummary(test_set, lev = levels(test_set$obs))
+        auc <- caret::twoClassSummary(test_set, lev = levels(test_set$obs))
       }
 
       return(auc)

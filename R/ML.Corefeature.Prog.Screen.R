@@ -113,7 +113,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
       train.data <- X
       if (!is.null(test.fold)) train.data <- X[-test.fold, ]
 
-      svmModel <- svm(train.data[, -1], train.data[, 1],
+      svmModel <- e1071::svm(train.data[, -1], train.data[, 1],
         cost = 10, cachesize = 500,
         scale = F, type = "C-classification", kernel = "linear"
       )
@@ -137,18 +137,18 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
     FeatSweep.wrap <- function(i, results, input) {
       # Wrapper to estimate generalization error across all hold-out folds, for a given number of top features
       svm.list <- lapply(results, function(x) {
-        e1071::tune(svm,
+        e1071::tune(e1071::svm,
           train.x = input[x$train.data.ids, 1 + x$feature.ids[1:i]],
           train.y = input[x$train.data.ids, 1],
           validation.x = input[x$test.data.ids, 1 + x$feature.ids[1:i]],
           validation.y = input[x$test.data.ids, 1],
           # Optimize SVM hyperparamters
-          ranges = e1071::tune(svm,
+          ranges = e1071::tune(e1071::svm,
             train.x = input[x$train.data.ids, 1 + x$feature.ids[1:i]],
             train.y = input[x$train.data.ids, 1],
             ranges  = list(gamma = 2^(-12:0), cost = 2^(-6:6))
           )$best.par,
-          tunecontrol = tune.control(sampling = "fix")
+          tunecontrol = e1071::tune.control(sampling = "fix")
         )$perf
       })
 
@@ -457,7 +457,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
 
       lasso_fea_list <- pbapply::pblapply(list.of.seed, function(x) { # about 2 days
         set.seed(list.of.seed[x])
-        cvfit <- cv.glmnet(
+        cvfit <- glmnet::cv.glmnet(
           x = x1,
           y = x2,
           nfolds = 10, # 10-fold????????lambda
@@ -524,7 +524,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
         list.of.seed <- 1:iter.times
         fea_list <- pblapply(list.of.seed, function(x) { # ????2?
           set.seed(list.of.seed[x])
-          cvfit <- cv.glmnet(
+          cvfit <- glmnet::cv.glmnet(
             x = x1,
             y = x2,
             nfolds = 10, # 10-fold????????lambda
@@ -651,14 +651,14 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
       train_matrix <- sparse.model.matrix(OS ~ . - 1, data = train)
       train_label <- as.numeric(train$OS)
       train_fin <- list(data = train_matrix, label = train_label)
-      dtrain <- xgb.DMatrix(data = train_fin$data, label = train_fin$label)
+      dtrain <- xgboost::xgb.DMatrix(data = train_fin$data, label = train_fin$label)
       # ????
-      xgb <- xgboost(
+      xgb <- xgboost::xgboost(
         data = dtrain, max_depth = 6, eta = 0.5,
         objective = "binary:logistic", nround = 25
       )
       # ???????
-      importance <- xgb.importance(train_matrix@Dimnames[[2]], model = xgb)
+      importance <- xgboost::xgb.importance(train_matrix@Dimnames[[2]], model = xgb)
       head(importance)
       importance$rel.imp <- importance$Gain / max(importance$Gain)
 
@@ -677,7 +677,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
       ##### 6.RSF ###########
       message("--- 6.RSF  ---")
 
-      fit <- rfsrc(Surv(OS.time, OS) ~ .,
+      fit <- randomForestSRC::rfsrc(Surv(OS.time, OS) ~ .,
         data = est_dd,
         ntree = 1000, nodesize = rf_nodesize, # ???????
         splitrule = "logrank",
@@ -687,7 +687,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
         seed = seed
       )
       set.seed(seed)
-      rid <- var.select(object = fit, conservative = "high")
+      rid <- randomForestSRC::var.select(object = fit, conservative = "high")
       rid <- rid$topvars
 
       result <- data.frame(
@@ -753,7 +753,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
 
         lasso_fea_list <- pbapply::pblapply(list.of.seed, function(x) { # about 2 days
           set.seed(list.of.seed[x])
-          cvfit <- cv.glmnet(
+          cvfit <- glmnet::cv.glmnet(
             x = x1,
             y = x2,
             nfolds = 10, # 10-fold????????lambda
@@ -820,7 +820,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
           list.of.seed <- 1:iter.times
           fea_list <- pblapply(list.of.seed, function(x) { # ????2?
             set.seed(list.of.seed[x])
-            cvfit <- cv.glmnet(
+            cvfit <- glmnet::cv.glmnet(
               x = x1,
               y = x2,
               nfolds = 10, # 10-fold????????lambda
@@ -948,14 +948,14 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
         train_matrix <- sparse.model.matrix(OS ~ . - 1, data = train)
         train_label <- as.numeric(train$OS)
         train_fin <- list(data = train_matrix, label = train_label)
-        dtrain <- xgb.DMatrix(data = train_fin$data, label = train_fin$label)
+        dtrain <- xgboost::xgb.DMatrix(data = train_fin$data, label = train_fin$label)
         # ????
-        xgb <- xgboost(
+        xgb <- xgboost::xgboost(
           data = dtrain, max_depth = 6, eta = 0.5,
           objective = "binary:logistic", nround = 25
         )
         # ???????
-        importance <- xgb.importance(train_matrix@Dimnames[[2]], model = xgb)
+        importance <- xgboost::xgb.importance(train_matrix@Dimnames[[2]], model = xgb)
         head(importance)
         importance$rel.imp <- importance$Gain / max(importance$Gain)
 
@@ -975,7 +975,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
         ##### 6.RSF ###########
         message("--- 6.RSF  ---")
 
-        fit <- rfsrc(Surv(OS.time, OS) ~ .,
+        fit <- randomForestSRC::rfsrc(Surv(OS.time, OS) ~ .,
           data = est_dd,
           ntree = 1000, nodesize = rf_nodesize,
           splitrule = "logrank",
@@ -985,7 +985,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
           seed = seed
         )
         set.seed(seed)
-        rid <- var.select(object = fit, conservative = "high")
+        rid <- randomForestSRC::var.select(object = fit, conservative = "high")
         rid <- rid$topvars
 
         result <- data.frame(
@@ -1055,7 +1055,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
 
       lasso_fea_list <- pbapply::pblapply(list.of.seed, function(x) { # about 2 days
         set.seed(list.of.seed[x])
-        cvfit <- cv.glmnet(
+        cvfit <- glmnet::cv.glmnet(
           x = x1,
           y = x2,
           nfolds = 10, # 10-fold????????lambda
@@ -1122,7 +1122,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
         list.of.seed <- 1:iter.times
         fea_list <- pblapply(list.of.seed, function(x) { # ????2?
           set.seed(list.of.seed[x])
-          cvfit <- cv.glmnet(
+          cvfit <- glmnet::cv.glmnet(
             x = x1,
             y = x2,
             nfolds = 10, # 10-fold????????lambda
@@ -1247,14 +1247,14 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
       train_matrix <- sparse.model.matrix(OS ~ . - 1, data = train)
       train_label <- as.numeric(train$OS)
       train_fin <- list(data = train_matrix, label = train_label)
-      dtrain <- xgb.DMatrix(data = train_fin$data, label = train_fin$label)
+      dtrain <- xgboost::xgb.DMatrix(data = train_fin$data, label = train_fin$label)
       # ????
-      xgb <- xgboost(
+      xgb <- xgboost::xgboost(
         data = dtrain, max_depth = 6, eta = 0.5,
         objective = "binary:logistic", nround = 25
       )
       # ???????
-      importance <- xgb.importance(train_matrix@Dimnames[[2]], model = xgb)
+      importance <- xgboost::xgb.importance(train_matrix@Dimnames[[2]], model = xgb)
       head(importance)
       importance$rel.imp <- importance$Gain / max(importance$Gain)
 
@@ -1273,7 +1273,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
       ##### 5.RSF ###########
       message("--- 5.RSF  ---")
 
-      fit <- rfsrc(Surv(OS.time, OS) ~ .,
+      fit <- randomForestSRC::rfsrc(Surv(OS.time, OS) ~ .,
         data = est_dd,
         ntree = 1000, nodesize = rf_nodesize, # ???????
         splitrule = "logrank",
@@ -1283,7 +1283,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
         seed = seed
       )
       set.seed(seed)
-      rid <- var.select(object = fit, conservative = "high")
+      rid <- randomForestSRC::var.select(object = fit, conservative = "high")
       rid <- rid$topvars
 
       result <- data.frame(

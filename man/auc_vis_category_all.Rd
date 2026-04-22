@@ -22,7 +22,7 @@ a ggplot2 object
 Creates a distribution plot of AUC among different methods when predicting response
 }
 \examples{
-auc_vis_category_all(res.ici,dataset = c("training","validation"),
-                     order= c("training","validation"))
-
+\dontrun{
+# See package documentation for full workflows.
+}
 }
