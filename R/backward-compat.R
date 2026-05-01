@@ -62,21 +62,10 @@ cal_cindex_pre_prog_sig <- function(...) {
   cal_cindex_pre.prog.sig(...)
 }
 
-# ---- cal_unicox_meta_ml_res alias ----
-
-#' @rdname cal_unicox_meta_ml_res
-#' @export
-cal_unicox_meta_ml_res <- function(...) {
-  cal_unicox_meta_ml_res(...)
-}
-
-# ---- cal_unicox_ml_res alias ----
-
-#' @rdname cal_unicox_ml_res
-#' @export
-cal_unicox_ml_res <- function(...) {
-  cal_unicox_ml_res(...)
-}
+# cal_unicox_meta_ml_res() and cal_unicox_ml_res() are already snake_case
+# public functions defined in their own implementation files.  Do not redefine
+# them here: a same-name alias would recursively call itself if source order
+# changed.
 
 # ---- TME_deconvolution_all alias ----
 

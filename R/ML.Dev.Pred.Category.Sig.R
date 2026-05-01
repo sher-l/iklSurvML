@@ -8,11 +8,103 @@
 #' @param methods There are seven algorithms for developing the predictive model including 'nb', 'svmRadialWeights', 'rf', 'kknn', 'adaboost', 'LogitBoost', 'cancerclass'. 'nb':Naive Bayes algorithm. 'svmRadialWeights': Support Vector Machine (SVM). 'rf': Random Forest. 'kknn': K-nearest Neighbors.'adaboost': AdaBoost Classification Trees. 'LogitBoost':Boosted Logistic Regressions. 'cancerclass': Cancerclass. 
 #' @param seed The seed you can set as any positive number, for example, 5201314.
 #' @param cores_for_parallel The cores you can choose for parallel operation. The default is 12.The bigger the better if the configuration allows it.
+#' @param positive_class The class treated as the positive/event class for ROC/AUC. Defaults to "Y".
+#' @param feature_alignment How candidate genes are aligned across cohorts.
+#'   "strict" (default) requires all candidate genes to be present in every
+#'   training/validation cohort. "intersection" preserves the legacy behavior
+#'   of training only on genes shared by all cohorts, with a warning for drops.
 #'
 #' @return A list containing the predictive model, the AUC, the ROC, and the candidate variables, all of which are developed by each single algorithm.
-#' @export
 #'
 #' @examples
+#' Resolve category ML methods and optional engines
+#' @keywords internal
+resolve_category_methods <- function(methods = NULL) {
+  method_packages <- category_method_packages()
+  valid_methods <- names(method_packages)
+
+  if (is.null(methods)) {
+    methods <- valid_methods[vapply(method_packages, function(pkgs) {
+      all(vapply(pkgs, requireNamespace, logical(1), quietly = TRUE))
+    }, logical(1))]
+    methods <- intersect(methods, valid_methods)
+    if (length(methods) == 0L) {
+      stop("No category ML engines are available; install at least one supported engine package.", call. = FALSE)
+    }
+    return(methods)
+  }
+
+  invalid <- setdiff(methods, valid_methods)
+  if (length(invalid) > 0) {
+    stop(paste0("methods contains unsupported values: ", paste(invalid, collapse = ", ")), call. = FALSE)
+  }
+
+  missing_by_method <- vapply(methods, function(method) {
+    pkgs <- method_packages[[method]]
+    missing <- pkgs[!vapply(pkgs, requireNamespace, logical(1), quietly = TRUE)]
+    if (length(missing) > 0L) {
+      paste(missing, collapse = ", ")
+    } else {
+      NA_character_
+    }
+  }, character(1))
+  missing_by_method <- missing_by_method[!is.na(missing_by_method)]
+  if (length(missing_by_method) > 0L) {
+    stop(paste0(
+      "Unavailable category ML engine package(s): ",
+      paste(paste0(names(missing_by_method), " requires ", missing_by_method), collapse = "; ")
+    ), call. = FALSE)
+  }
+
+  methods
+}
+
+#' Validate category ML data before creating workers
+#' @keywords internal
+validate_category_ml_inputs <- function(train_data,
+                                        list_train_vali_Data,
+                                        candidate_genes,
+                                        common_feature) {
+  if (!is.data.frame(train_data)) {
+    stop("train_data must be a data.frame", call. = FALSE)
+  }
+  if (!is.list(list_train_vali_Data) || length(list_train_vali_Data) == 0) {
+    stop("list_train_vali_Data must be a non-empty list of data.frames", call. = FALSE)
+  }
+  if (!identical(colnames(train_data)[1:2], c("ID", "Var"))) {
+    stop("first 2 columns of train_data must be ID, Var", call. = FALSE)
+  }
+  bad_datasets <- names(list_train_vali_Data)[
+    !vapply(list_train_vali_Data, function(x) {
+      is.data.frame(x) && identical(colnames(x)[1:2], c("ID", "Var"))
+    }, logical(1))
+  ]
+  if (length(bad_datasets) > 0) {
+    stop(paste0(
+      "first 2 columns of each validation dataset must be ID, Var. Invalid: ",
+      paste(bad_datasets, collapse = ", ")
+    ), call. = FALSE)
+  }
+  if (length(candidate_genes) < 2) {
+    stop("candidate_genes must contain at least 2 features", call. = FALSE)
+  }
+  if (!identical(common_feature[1:2], c("ID", "Var")) || length(common_feature) <= 3) {
+    stop("candidate_genes must overlap train_data and all validation datasets", call. = FALSE)
+  }
+
+  all_var_values <- unique(c(
+    as.character(train_data$Var),
+    unlist(lapply(list_train_vali_Data, function(x) as.character(x$Var)), use.names = FALSE)
+  ))
+  invalid_var_values <- setdiff(all_var_values[!is.na(all_var_values)], c("Y", "N"))
+  if (any(is.na(all_var_values)) || length(invalid_var_values) > 0) {
+    stop("Var must contain only non-missing Y/N values", call. = FALSE)
+  }
+
+  invisible(TRUE)
+}
+
+#' @export
 ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training, the colnames of which inlcuding ID, Var, and the other candidate genes。
                                      # Var 是用于构建预测模型的目标变量，Y/N，
                                      list_train_vali_Data, # cohort data used for training, the colnames of which inlcuding ID, Var, and the other candidate genes。
@@ -20,14 +112,21 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
                                      candidate_genes = NULL,
                                      methods = NULL, # c('nb','svmRadialWeights','rf','kknn','adaboost','LogitBoost','cancerclass')
                                      seed = 5201314, # 5201314
-                                     cores_for_parallel = 12 #
+                                     cores_for_parallel = 12, #
+                                     positive_class = "Y",
+                                     feature_alignment = c("strict", "intersection")
 ) {
   ###### loading the function #######
 
 
 
+  class_levels <- category_class_levels(positive_class)
+  negative_class <- setdiff(c("Y", "N"), positive_class)
+  feature_alignment <- match.arg(feature_alignment)
+
   model.Dev <- function(training, method, sig) {
     training <- training[, colnames(training) %in% c("Var", sig)]
+    training$Var <- factor(as.character(training$Var), levels = class_levels)
     # 7 models adpoted in this study as followings:
     #' nb': navie bayes
     #' svmRadialWeights': Support Vector Machines with Class Weights
@@ -38,14 +137,7 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
     #' cancerclass': cancerclass
 
     # Grid search for parameter tuning
-    Grid <- list(
-      nb = expand.grid(fL = c(0, 0.5, 1, 1.5, 2.0), usekernel = TRUE, adjust = c(0.5, 0.75, 1, 1.25, 1.5)),
-      svmRadialWeights = expand.grid(sigma = c(0.0005, 0.001, 0.005, 0.01, 0.05), C = c(1, 3, 5, 10, 20), Weight = c(0.1, 0.5, 1, 2, 3, 5, 10)),
-      rf = expand.grid(mtry = c(2, 42, 83, 124, 165, 205, 246, 287, 328, 369)),
-      kknn = expand.grid(kmax = c(5, 7, 9, 11, 13), distance = 2, kernel = "optimal"),
-      adaboost = expand.grid(nIter = c(50, 100, 150, 200, 250), method = c("Adaboost.M1", "Real adaboost")),
-      LogitBoost = expand.grid(nIter = c(11, 21, 31, 41, 51, 61, 71, 81, 91, 101))
-    )
+    Grid <- category_tune_grid(n_features = length(sig))
     TuneLength <- list(
       nb = nrow(Grid[["nb"]]),
       svmRadialWeights = nrow(Grid[["svmRadialWeights"]]),
@@ -161,7 +253,7 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
   cal.model.auc <- function(res.by.model.Dev, cohort.for.cal, sig) {
     rownames(cohort.for.cal) <- cohort.for.cal$ID
     validation <- cohort.for.cal[, colnames(cohort.for.cal) %in% c("Var", sig)]
-    validation$Var <- factor(validation$Var, levels = c("N", "Y"))
+    validation$Var <- factor(validation$Var, levels = class_levels)
     
     ls_model <- res.by.model.Dev
     models <- names(ls_model)
@@ -172,7 +264,7 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
         phenoData <- Biobase::AnnotatedDataFrame(data = pData)
         Sig.Exp <- t(validation[, -1])
         Sig.Exp.test <- Biobase::ExpressionSet(assayData = as.matrix(Sig.Exp), phenoData = phenoData)
-        prediction <- predict(model.tune, Sig.Exp.test, "N", ngenes = nrow(Sig.Exp), dist = "cor")
+        prediction <- predict(model.tune, Sig.Exp.test, positive_class, ngenes = nrow(Sig.Exp), dist = "cor")
         roc <- pROC::roc(
           response = prediction@prediction[, "class_membership"],
           predictor = as.numeric(prediction@prediction[, "z"])
@@ -183,8 +275,11 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
         model.tune <- ls_model[[i]]
         prob <- predict(model.tune, validation[, -1], type = "prob")
         pre <- predict(model.tune, validation[, -1])
-        test_set <- data.frame(obs = validation$Var, N = prob[, "N"], Y = prob[, "Y"], pred = pre)
-        auc <- caret::twoClassSummary(test_set, lev = levels(test_set$obs))
+        test_set <- data.frame(obs = validation$Var, pred = pre, check.names = FALSE)
+        for (cls in class_levels) {
+          test_set[[cls]] <- prob[, cls]
+        }
+        auc <- caret::twoClassSummary(test_set, lev = class_levels)
       }
       
       return(auc)
@@ -199,7 +294,7 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
   cal.model.roc <- function(res.by.model.Dev, cohort.for.cal, sig) {
     rownames(cohort.for.cal) <- cohort.for.cal$ID
     validation <- cohort.for.cal[, colnames(cohort.for.cal) %in% c("Var", sig)]
-    validation$Var <- factor(validation$Var, levels = c("N", "Y"))
+    validation$Var <- factor(validation$Var, levels = class_levels)
 
     ls_model <- res.by.model.Dev
     models <- names(ls_model)
@@ -207,11 +302,14 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
       if (!models[i] == "cancerclass") {
         prob <- predict(ls_model[[models[i]]], validation[, -1], type = "prob") #
         pre <- predict(ls_model[[models[i]]], validation[, -1]) #
-        test_set <- data.frame(obs = validation$Var, N = prob[, "N"], Y = prob[, "Y"], pred = pre)
+        test_set <- data.frame(obs = validation$Var, pred = pre, check.names = FALSE)
+        for (cls in class_levels) {
+          test_set[[cls]] <- prob[, cls]
+        }
         roc <- ROCit::rocit(
-          score = test_set$N,
+          score = test_set[[positive_class]],
           class = test_set$obs,
-          negref = "Y"
+          negref = negative_class
         )
       } else {
         pData <- data.frame(class = validation$Var, sample = rownames(validation), row.names = rownames(validation))
@@ -219,8 +317,8 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
         Sig.Exp <- t(validation[, -1])
         Sig.Exp.test <- Biobase::ExpressionSet(assayData = as.matrix(Sig.Exp), phenoData = phenoData)
 
-        prediction <- predict(ls_model[[models[i]]], Sig.Exp.test, "N", ngenes = nrow(Sig.Exp), dist = "cor")
-        roc <- roc(
+        prediction <- predict(ls_model[[models[i]]], Sig.Exp.test, positive_class, ngenes = nrow(Sig.Exp), dist = "cor")
+        roc <- pROC::roc(
           response = prediction@prediction[, "class_membership"],
           predictor = as.numeric(prediction@prediction[, "z"])
         )
@@ -239,26 +337,65 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
 
 
   
-  list_train_vali_Data <- lapply(list_train_vali_Data,function(x){
-    colnames(x) = gsub('-','.',colnames(x))
-    return(x)})
-  colnames(train_data) <- gsub("-", ".", colnames(train_data))
-  candidate_genes <- gsub("-", ".", candidate_genes)
+  data_names <- names(list_train_vali_Data)
+  if (is.null(data_names)) {
+    data_names <- as.character(seq_along(list_train_vali_Data))
+  }
+  list_train_vali_Data <- lapply(data_names, function(nm) {
+    normalize_ml_data_columns(list_train_vali_Data[[nm]], paste0("Dataset '", nm, "'"))
+  })
+  names(list_train_vali_Data) <- data_names
+  train_data <- normalize_ml_data_columns(train_data, "Training data")
+  candidate_genes <- normalize_ml_feature_names(candidate_genes)
   common_feature <- c("ID", "Var", candidate_genes)
-
-  for (i in names(list_train_vali_Data)) {
-    common_feature <- intersect(common_feature, colnames(list_train_vali_Data[[i]]))
+  if (identical(feature_alignment, "strict")) {
+    datasets <- c(list(`Training data` = train_data), list_train_vali_Data)
+    missing_by_dataset <- vapply(names(datasets), function(nm) {
+      paste(setdiff(common_feature, colnames(datasets[[nm]])), collapse = ", ")
+    }, character(1))
+    missing_by_dataset <- missing_by_dataset[nzchar(missing_by_dataset)]
+    if (length(missing_by_dataset) > 0L) {
+      stop(paste0(
+        "feature_alignment='strict' requires ID, Var, and all candidate_genes ",
+        "in every training/validation dataset. Missing: ",
+        paste(paste0(names(missing_by_dataset), " [", missing_by_dataset, "]"), collapse = "; ")
+      ), call. = FALSE)
+    }
+  } else {
+    for (i in names(list_train_vali_Data)) {
+      common_feature <- intersect(common_feature, colnames(list_train_vali_Data[[i]]))
+    }
+    dropped <- setdiff(candidate_genes, common_feature[-c(1:2)])
+    if (length(dropped) > 0L) {
+      warning(paste0(
+        "feature_alignment='intersection' dropped candidate features absent from at least one cohort: ",
+        paste(dropped, collapse = ", ")
+      ), call. = FALSE)
+    }
   }
 
   ##### parameters check #####
 
+
+  validate_category_ml_inputs(
+    train_data = train_data,
+    list_train_vali_Data = list_train_vali_Data,
+    candidate_genes = candidate_genes,
+    common_feature = common_feature
+  )
+  methods <- resolve_category_methods(methods)
+  if (length(cores_for_parallel) != 1L || is.na(cores_for_parallel) ||
+      cores_for_parallel < 1L) {
+    stop("cores_for_parallel must be a positive scalar integer", call. = FALSE)
+  }
+  cores_for_parallel <- as.integer(cores_for_parallel)
 
   if (
     #identical(colnames(train_data)[1:2], c("ID", "Var")) &
     #identical(common_feature[1:2], c("ID", "Var")) &
     #unique(train_data$Var) %in% c("Y", "N") &
     #length(candidate_genes) > 1 &
-    all(is.element(methods, c("nb", "svmRadialWeights", "rf", "kknn", "adaboost", "LogitBoost", "cancerclass")))
+	    all(is.element(methods, c("nb", "svmRadialWeights", "rf", "kknn", "adaboost", "LogitBoost", "cancerclass")))
 
 
   ) {
@@ -268,39 +405,26 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
 
 
 
-    list_train_vali_Data <- lapply(list_train_vali_Data, function(x) {
-      x[, common_feature]
-    })
+	    category_prepped <- fit_category_preprocess_recipe(
+	      train_data,
+	      common_feature = common_feature,
+	      label = "Training data",
+	      positive_class = positive_class
+	    )
+	    train_data <- category_prepped$data
+	    preprocess_recipe <- category_prepped$recipe
+	    list_train_vali_Data <- lapply(names(list_train_vali_Data), function(nm) {
+	      apply_category_preprocess_recipe(
+	        list_train_vali_Data[[nm]],
+	        recipe = preprocess_recipe,
+	        label = paste0("Dataset '", nm, "'"),
+	        common_feature = common_feature
+	      )
+	    })
+	    names(list_train_vali_Data) <- data_names
 
-    list_train_vali_Data <- lapply(list_train_vali_Data, function(x) {
-      x[, -c(1:2)] <- apply(x[, -c(1:2)], 2, as.numeric)
-      rownames(x) <- x$ID
-      return(x)
-    })
-
-
-    list_train_vali_Data <- lapply(list_train_vali_Data, function(x) {
-      x <- x[!is.na(x$Var) & !is.na(x$Var), ]
-      return(x)
-    })
-
-    # use the mean replace the NA
-    list_train_vali_Data <- lapply(list_train_vali_Data, function(x) {
-      x[, -c(1:2)] <- apply(x[, -c(1:2)], 2, function(x) {
-        x[is.na(x)] <- mean(x, na.rm = T)
-        return(x)
-      })
-
-
-      return(x)
-    })
-
-    train_data <- train_data[, common_feature]
-    train_data[, -c(1:2)] <- apply(train_data[, -c(1:2)], 2, as.numeric)
-    rownames(train_data) <- train_data$ID
-
-    est_dd <- as.data.frame(train_data)[, common_feature[-1]]
-    pre_var <- common_feature[-c(1:2)]
+	    est_dd <- as.data.frame(train_data)[, common_feature[-1]]
+	    pre_var <- preprocess_recipe$feature_names
 
 
 
@@ -317,15 +441,24 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
     # parallel processing
 
 
-  cl <- parallel::makePSOCKcluster(cores_for_parallel)
-    registerDoParallel(cl)
+	  cl <- parallel::makePSOCKcluster(cores_for_parallel)
+	    on.exit({
+	      if (!is.null(cl)) {
+	        parallel::stopCluster(cl)
+	      }
+	      foreach::registerDoSEQ()
+	    }, add = TRUE)
+	    doParallel::registerDoParallel(cl)
 
+    set.seed(seed)
     res.model <- model.Dev(
       training = train_data,
-      method = c("nb", "svmRadialWeights", "kknn", "rf", "adaboost", "LogitBoost", "cancerclass"),
+      method = methods,
       sig = pre_var
     )
-    parallel::stopCluster(cl)
+	    parallel::stopCluster(cl)
+	    cl <- NULL
+	    foreach::registerDoSEQ()
 
 
 
@@ -342,12 +475,14 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
     names(ml.roc) <- names(list_train_vali_Data)
 
     res <- list()
-    res[["model"]] <- res.model
-    res[["auc"]] <- ml.auc
-    res[["roc"]] <- ml.roc
-    res[["sig.gene"]] <- pre_var
+	    res[["model"]] <- res.model
+	    res[["auc"]] <- ml.auc
+	    res[["roc"]] <- ml.roc
+	    res[["sig.gene"]] <- pre_var
+	    res[["Preprocess.recipe"]] <- preprocess_recipe
+	    res[["positive_class"]] <- positive_class
 
-    return(res)
+	    return(res)
   } else {
     print("Please provide the correct parameters")
   }

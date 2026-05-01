@@ -104,7 +104,11 @@ TME_deconvolution_all <- function(inputmatrix.list, # A list contain the datafra
       resultList <- list("tme_combine" = tme_combine)
       return(resultList)
     } else {
-      print("Please provide the correct parameters for deconvolution method")
+      invalid_methods <- setdiff(deconvolution_method, deconvolution_methods)
+      stop(paste0(
+        "Unsupported deconvolution_method value(s): ",
+        paste(invalid_methods, collapse = ", ")
+      ), call. = FALSE)
     }
   }
 
@@ -121,39 +125,64 @@ TME_deconvolution_all <- function(inputmatrix.list, # A list contain the datafra
 
 
   selected_columns <- microarray_names
+  if (!is.character(selected_columns) || length(selected_columns) == 0L ||
+      any(is.na(selected_columns))) {
+    stop("microarray_names must be 'none' or one or more dataset names", call. = FALSE)
+  }
+  microarray_is_none <- length(selected_columns) == 1L && identical(selected_columns, "none")
+  if (!microarray_is_none) {
+    invalid_microarray_names <- setdiff(selected_columns, names(inputmatrix.list))
+    if (length(invalid_microarray_names) > 0L) {
+      stop(paste0(
+        "microarray_names contains dataset names not present in inputmatrix.list: ",
+        paste(invalid_microarray_names, collapse = ", ")
+      ), call. = FALSE)
+    }
+  }
 
-  for (i in 1:length(inputmatrix.list)) {
+  tme_errors <- character()
+  for (i in seq_along(inputmatrix.list)) {
+    dataset_name <- names(inputmatrix.list)[i]
     train_data <- inputmatrix.list[[i]]
     test.matrix <- train_data %>%
       magrittr::set_rownames(.$ID) %>%
       dplyr::select(-c(ID, OS.time, OS)) %>%
       t()
 
-    tryCatch(
+    resultList <- tryCatch(
       {
-        if (selected_columns == "none") {
-          resultList <- TME_deconvolution(gene_expression = test.matrix, deconvolution_method = deconvolution_method, arrays = F)
-        } else if (all(selected_columns %in% names(inputmatrix.list))) {
-          # 将用户输入的名字拆分成一个字符向量
-          if (names(inputmatrix.list)[i] %in% selected_columns) {
-            # 确保用户输入的名字都存在
-            resultList <- TME_deconvolution(gene_expression = test.matrix, deconvolution_method = deconvolution_method, arrays = T)
-          } else {
-            resultList <- TME_deconvolution(gene_expression = test.matrix, deconvolution_method = deconvolution_method, arrays = F)
-          }
-        } else {
-          cat("Invalid dataset name(s). Please try again.")
-        }
-        print("Success")
+        use_microarray <- !microarray_is_none && dataset_name %in% selected_columns
+        TME_deconvolution(
+          gene_expression = test.matrix,
+          deconvolution_method = deconvolution_method,
+          arrays = use_microarray,
+          tumor = tumor,
+          column = column,
+          rmgenes = rmgenes,
+          scale_mrna = scale_mrna,
+          expected_cell_types = expected_cell_types,
+          ...
+        )
       },
       error = function(e) {
-        print(paste("An error occurred:", conditionMessage(e)))
-        resultList <- NULL
-      },
-      finally = {
-        tme_decon_list[[names(inputmatrix.list)[i]]] <- resultList
+        tme_errors <<- c(tme_errors, paste0(dataset_name, ": ", conditionMessage(e)))
+        NULL
       }
     )
+    if (!is.null(resultList)) {
+      print("Success")
+      tme_decon_list[[dataset_name]] <- resultList
+    }
+  }
+
+  if (length(tme_errors) > 0L) {
+    attr(tme_decon_list, "errors") <- tme_errors
+    stop(paste0(
+      "TME deconvolution failed for ",
+      length(tme_errors),
+      " cohort(s): ",
+      paste(tme_errors, collapse = "; ")
+    ), call. = FALSE)
   }
   return(tme_decon_list)
 }

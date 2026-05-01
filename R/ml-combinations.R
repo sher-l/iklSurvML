@@ -26,7 +26,7 @@ run_rsf_combination <- function(est_dd,
                                 alpha_for_enet = NULL,
                                 direction_for_stepcox = NULL,
                                 cores_for_parallel = 6) {
-  valid_algos <- c("CoxBoost", "Enet", "GBM", "Lasso", "plsRcox", "Ridge", "StepCox", "SuperPC", "survivalsvm")
+  valid_algos <- setdiff(survival_ml_names(), "RSF")
   if (!second_algo %in% valid_algos) {
     stop(paste0("RSF combination: second_algo must be one of: ",
                 paste(valid_algos, collapse = ", "), ". Got: '", second_algo, "'"))
@@ -104,13 +104,11 @@ run_rsf_combination <- function(est_dd,
     return(list(result = result, ml.res = ml.res, riskscore = riskscore))
   } else if (second_algo == "SuperPC") {
     superpc_result <- train_superpc(est_dd2, seed)
-    fit <- superpc_result$fit
-    cv_fit <- superpc_result$cv_fit
     rs <- lapply(val_dd_list2, function(x) {
-      cbind(x[, 1:2], RS = predict_superpc(fit, cv_fit, est_dd2, x))
+      cbind(x[, 1:2], RS = predict_superpc_model(superpc_result, est_dd2, x))
     })
     model_name <- "RSF + SuperPC"
-    ml.res[[model_name]] <- list(fit, cv_fit)
+    ml.res[[model_name]] <- superpc_result
   } else if (second_algo == "survivalsvm") {
     fit <- train_survivalsvm(est_dd2, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_survivalsvm(fit, x))
@@ -143,12 +141,13 @@ run_stepcox_combination <- function(est_dd,
                                     train_data,
                                     val_dd_list,
                                     list_train_vali_Data,
-                                    direction = "both",
-                                    seed = 5201314,
-                                    second_algo,
-                                    alpha_for_enet = NULL,
-                                    cores_for_parallel = 6) {
-  valid_algos <- c("CoxBoost", "Enet", "GBM", "Lasso", "plsRcox", "Ridge", "RSF", "SuperPC", "survivalsvm")
+	                                    direction = "both",
+	                                    seed = 5201314,
+	                                    second_algo,
+	                                    alpha_for_enet = NULL,
+	                                    rf_nodesize = 5,
+	                                    cores_for_parallel = 6) {
+  valid_algos <- setdiff(survival_ml_names(), "StepCox")
   if (!second_algo %in% valid_algos) {
     stop(paste0("StepCox combination: second_algo must be one of: ",
                 paste(valid_algos, collapse = ", "), ". Got: '", second_algo, "'"))
@@ -213,19 +212,17 @@ run_stepcox_combination <- function(est_dd,
     model_name <- paste0("StepCox[", direction, "] + Ridge")
     ml.res[[model_name]] <- fit
   } else if (second_algo == "RSF") {
-    fit <- train_rsf(est_dd2, 5, seed)
+    fit <- train_rsf(est_dd2, rf_nodesize, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_rsf(fit, x))
     model_name <- paste0("StepCox[", direction, "] + RSF")
     ml.res[[model_name]] <- fit
   } else if (second_algo == "SuperPC") {
     superpc_result <- train_superpc(est_dd2, seed)
-    fit <- superpc_result$fit
-    cv_fit <- superpc_result$cv_fit
     rs <- lapply(val_dd_list2, function(x) {
-      cbind(x[, 1:2], RS = predict_superpc(fit, cv_fit, est_dd2, x))
+      cbind(x[, 1:2], RS = predict_superpc_model(superpc_result, est_dd2, x))
     })
     model_name <- paste0("StepCox[", direction, "] + SuperPC")
-    ml.res[[model_name]] <- list(fit = fit, cv_fit = cv_fit)
+    ml.res[[model_name]] <- superpc_result
   } else if (second_algo == "survivalsvm") {
     fit <- train_survivalsvm(est_dd2, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_survivalsvm(fit, x))
@@ -250,11 +247,12 @@ run_coxboost_combination <- function(est_dd,
                                      train_data,
                                      val_dd_list,
                                      list_train_vali_Data,
-                                     seed = 5201314,
-                                     second_algo,
-                                     direction_for_stepcox = "both",
-                                     cores_for_parallel = 6) {
-  valid_algos <- c("Enet", "GBM", "Lasso", "plsRcox", "Ridge", "RSF", "StepCox", "SuperPC", "survivalsvm")
+	                                     seed = 5201314,
+	                                     second_algo,
+	                                     direction_for_stepcox = "both",
+	                                     rf_nodesize = 5,
+	                                     cores_for_parallel = 6) {
+  valid_algos <- setdiff(survival_ml_names(), "CoxBoost")
   if (!second_algo %in% valid_algos) {
     stop(paste0("CoxBoost combination: second_algo must be one of: ",
                 paste(valid_algos, collapse = ", "), ". Got: '", second_algo, "'"))
@@ -265,20 +263,19 @@ run_coxboost_combination <- function(est_dd,
   ml.res <- list()
   riskscore <- list()
 
-  # For CoxBoost combinations, we need to first select features
-  # Here we use the full est_dd for CoxBoost training
-  # Selected features come from the model coefficients
-
+  # Train CoxBoost and use non-zero coefficients as selected features.
   fit_coxboost <- train_coxboost(est_dd, seed)
+  rid <- get_coxboost_selected_vars(fit_coxboost)
 
-  # Get non-zero coefficients as selected features
-  # CoxBoost doesn't have a direct variable selection method
-  # We'll use all features for now
+  if (length(rid) <= 1) {
+    warning("The number of selected candidate genes by CoxBoost is less than 2")
+    return(NULL)
+  }
 
-  rid <- colnames(est_dd)[-c(1, 2)]
-
-  est_dd2 <- est_dd
-  val_dd_list2 <- val_dd_list
+  est_dd2 <- train_data[, c("OS.time", "OS", rid)]
+  val_dd_list2 <- lapply(list_train_vali_Data, function(x) {
+    x[, c("OS.time", "OS", rid)]
+  })
 
   if (second_algo == "Enet") {
     for (alpha in seq(0.1, 0.9, 0.1)) {
@@ -315,7 +312,7 @@ run_coxboost_combination <- function(est_dd,
     model_name <- "CoxBoost + Ridge"
     ml.res[[model_name]] <- fit
   } else if (second_algo == "RSF") {
-    fit <- train_rsf(est_dd2, 5, seed)
+    fit <- train_rsf(est_dd2, rf_nodesize, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_rsf(fit, x))
     model_name <- "CoxBoost + RSF"
     ml.res[[model_name]] <- fit
@@ -326,13 +323,11 @@ run_coxboost_combination <- function(est_dd,
     ml.res[[model_name]] <- fit
   } else if (second_algo == "SuperPC") {
     superpc_result <- train_superpc(est_dd2, seed)
-    fit <- superpc_result$fit
-    cv_fit <- superpc_result$cv_fit
     rs <- lapply(val_dd_list2, function(x) {
-      cbind(x[, 1:2], RS = predict_superpc(fit, cv_fit, est_dd2, x))
+      cbind(x[, 1:2], RS = predict_superpc_model(superpc_result, est_dd2, x))
     })
     model_name <- "CoxBoost + SuperPC"
-    ml.res[[model_name]] <- list(fit = fit, cv_fit = cv_fit)
+    ml.res[[model_name]] <- superpc_result
   } else if (second_algo == "survivalsvm") {
     fit <- train_survivalsvm(est_dd2, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_survivalsvm(fit, x))
@@ -357,11 +352,13 @@ run_lasso_combination <- function(est_dd,
                                   train_data,
                                   val_dd_list,
                                   list_train_vali_Data,
-                                  pre_var,
-                                  seed = 5201314,
-                                  second_algo,
-                                  direction_for_stepcox = "both") {
-  valid_algos <- c("CoxBoost", "Enet", "GBM", "plsRcox", "Ridge", "RSF", "StepCox", "SuperPC", "survivalsvm")
+	                                  pre_var,
+	                                  seed = 5201314,
+	                                  second_algo,
+	                                  direction_for_stepcox = "both",
+	                                  rf_nodesize = 5,
+	                                  cores_for_parallel = 6) {
+  valid_algos <- setdiff(survival_ml_names(), "Lasso")
   if (!second_algo %in% valid_algos) {
     stop(paste0("Lasso combination: second_algo must be one of: ",
                 paste(valid_algos, collapse = ", "), ". Got: '", second_algo, "'"))
@@ -396,7 +393,7 @@ run_lasso_combination <- function(est_dd,
     model_name <- "Lasso + CoxBoost"
     ml.res[[model_name]] <- fit
   } else if (second_algo == "GBM") {
-    gbm_result <- train_gbm(est_dd2, seed)
+    gbm_result <- train_gbm(est_dd2, seed, cores_for_parallel)
     fit <- gbm_result$fit
     best <- gbm_result$best
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_gbm(fit, best, x))
@@ -408,7 +405,7 @@ run_lasso_combination <- function(est_dd,
     model_name <- "Lasso + plsRcox"
     ml.res[[model_name]] <- fit
   } else if (second_algo == "RSF") {
-    fit <- train_rsf(est_dd2, 5, seed)
+    fit <- train_rsf(est_dd2, rf_nodesize, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_rsf(fit, x))
     model_name <- "Lasso + RSF"
     ml.res[[model_name]] <- fit
@@ -419,13 +416,11 @@ run_lasso_combination <- function(est_dd,
     ml.res[[model_name]] <- fit
   } else if (second_algo == "SuperPC") {
     superpc_result <- train_superpc(est_dd2, seed)
-    fit <- superpc_result$fit
-    cv_fit <- superpc_result$cv_fit
     rs <- lapply(val_dd_list2, function(x) {
-      cbind(x[, 1:2], RS = predict_superpc(fit, cv_fit, est_dd2, x))
+      cbind(x[, 1:2], RS = predict_superpc_model(superpc_result, est_dd2, x))
     })
     model_name <- "Lasso + SuperPC"
-    ml.res[[model_name]] <- list(fit = fit, cv_fit = cv_fit)
+    ml.res[[model_name]] <- superpc_result
   } else if (second_algo == "survivalsvm") {
     fit <- train_survivalsvm(est_dd2, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_survivalsvm(fit, x))

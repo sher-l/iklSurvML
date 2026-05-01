@@ -1,12 +1,12 @@
 #' Screening out the core variables for the prognosis with the machine learning algorithms
 #' 
-#' A function can be used for screening out the core features from the given candidate genes with eight machine learning algorithms. 
+#' A function can be used for screening out the core features from the given candidate genes with seven machine learning algorithms.
 #' 
 #' @param InputMatrix A gene expression dataframe after log2(x+1) scaled. The first three of the column names are, in order, ID,OS.time, OS. Columns starting with the fourth are gene symbols. OS.time is a numeric variable in days. OS is a numeric variable containing 0, 1. 0: Alive, 1: Dead. 
 #' @param candidate_genes The input genes, that you want to screen out from, for identifying the core features.
-#' @param mode  We provide three modes including 'all', 'single', and 'all_without_SVM'. The 'all' mode means using all eight methods for selecting. The 'single' mode means using only one method for running. Since SVM takes so much time, we're singling him out. The 'all_without_SVM' mode means the other seven methods used for selecting. 
+#' @param mode  We provide three modes including 'all', 'single', and 'all_without_SVM'. The 'all' mode means using all seven methods for selecting. The 'single' mode means using only one method for running. Since SVM takes so much time, we're singling him out. The 'all_without_SVM' mode means the other six methods used for selecting.
 #' @param seed  The seed. You can set it as any number. For example, 5201314.
-#' @param single_ml The one method from the eight methods including "RSF", "Enet", "Boruta", "Xgboost", "SVM-REF", "Lasso", "CoxBoost', 'StepCox'.
+#' @param single_ml The one method from the seven methods including "RSF", "Enet", "Xgboost", "SVM-REF", "Lasso", "CoxBoost", "StepCox".
 #' @param nodesize The node size parameter for the RSF method. The default is 5. You can try another positive integer. For example, 10,15,20, etc. 
 #'
 #' @return A data frame including the methods and the core genes screened by the corresponding algorithm.
@@ -17,7 +17,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
                                        candidate_genes,
                                        mode = NULL, # all, single,all_without_SVM
                                        seed = NULL,
-                                       single_ml = NULL, # c("RSF", "Enet", "Boruta","Xgboost","SVM-REF","Lasso","CoxBoost','StepCox')
+                                       single_ml = NULL, # c("RSF", "Enet", "Xgboost","SVM-REF","Lasso","CoxBoost","StepCox")
                                        nodesize = 5) {
   ### laoding the function ####
 
@@ -121,7 +121,94 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
       t(svmModel$coefs) %*% svmModel$SV
     }
 
-    WriteFeatures <- function(results, input, save = T, file = "features_ranked.txt") {
+    survival_svm_screen <- function(est_dd, seed, max_features = 300) {
+      features <- colnames(est_dd)[-c(1, 2)]
+      if (length(features) <= 1L) {
+        return(features)
+      }
+      fit <- train_survivalsvm(est_dd, seed)
+      base_rs <- predict_survivalsvm(fit, est_dd)
+      base_cindex <- calculate_cindex(base_rs, est_dd)
+      if (is.na(base_cindex)) {
+        base_cindex <- 0.5
+      }
+
+      importance <- vapply(seq_along(features), function(i) {
+        feature <- features[[i]]
+        permuted <- est_dd
+        set.seed(seed + i)
+        permuted[[feature]] <- sample(permuted[[feature]])
+        rs <- tryCatch(predict_survivalsvm(fit, permuted), error = function(e) rep(NA_real_, nrow(permuted)))
+        cindex <- calculate_cindex(rs, permuted)
+        if (is.na(cindex)) {
+          return(NA_real_)
+        }
+        base_cindex - cindex
+      }, numeric(1))
+
+      names(importance) <- features
+      ordered <- names(sort(importance, decreasing = TRUE, na.last = NA))
+      selected <- ordered[importance[ordered] > 0]
+      if (length(selected) < 2L) {
+        selected <- ordered
+      }
+      head(selected, min(max_features, length(selected)))
+    }
+
+	    survival_xgboost_screen <- function(est_dd, seed) {
+      if (!requireNamespace("xgboost", quietly = TRUE)) {
+        stop(
+          "ML.Corefeature.Prog.Screen single_ml='Xgboost' or Xgboost-containing modes require the optional xgboost package; install xgboost or choose a non-Xgboost mode.",
+          call. = FALSE
+        )
+      }
+      features <- colnames(est_dd)[-c(1, 2)]
+      train <- as.data.frame(est_dd[, features, drop = FALSE])
+      train_matrix <- Matrix::sparse.model.matrix(~ . - 1, data = train)
+      # xgboost survival:cox treats negative labels as right-censored times.
+      train_label <- as.numeric(est_dd$OS.time)
+      train_label[as.numeric(est_dd$OS) == 0] <- -train_label[as.numeric(est_dd$OS) == 0]
+      dtrain <- xgboost::xgb.DMatrix(data = train_matrix, label = train_label)
+      xgb <- xgboost::xgboost(
+        data = dtrain,
+        max_depth = 3,
+        eta = 0.05,
+        objective = "survival:cox",
+        nrounds = 100,
+        verbose = 0
+      )
+      importance <- xgboost::xgb.importance(colnames(train_matrix), model = xgb)
+      if (nrow(importance) == 0L) {
+        return(character())
+      }
+	      importance$rel.imp <- importance$Gain / max(importance$Gain, na.rm = TRUE)
+	      importance[importance$rel.imp >= 0.05, "Feature"]
+	    }
+
+	    append_screen_result <- function(selected.feature, method, rid) {
+	      result <- data.frame(
+	        method = c(rep(method, length(rid))),
+	        selected.fea = rid
+	      )
+	      rbind(selected.feature, result)
+	    }
+
+	    screen_rsf_vars <- function(est_dd, rf_nodesize, seed) {
+	      fit <- train_rsf(est_dd, rf_nodesize = rf_nodesize, seed = seed)
+	      get_rsf_selected_vars(fit, seed = seed)
+	    }
+
+	    screen_coxboost_vars <- function(est_dd, seed) {
+	      fit <- train_coxboost(est_dd, seed = seed)
+	      get_coxboost_selected_vars(fit)
+	    }
+
+	    screen_stepcox_vars <- function(est_dd, direction) {
+	      fit <- train_stepcox(est_dd, direction = direction)
+	      get_stepcox_selected_vars(fit)
+	    }
+
+	    WriteFeatures <- function(results, input, save = T, file = "features_ranked.txt") {
       # Compile feature rankings across multiple folds
       featureID <- sort(apply(sapply(results, function(x) sort(x$feature, index.return = T)$ix), 1, mean), index = T)$ix
       avg.rank <- sort(apply(sapply(results, function(x) sort(x$feature, index.return = T)$ix), 1, mean), index = T)$x
@@ -197,91 +284,89 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
     }
 
 
+    prepare_core_screening_input <- function(gene_list, inputSet, label) {
+      print("Starting the data preprocess")
+      print("Rejecting a null value")
+
+      gene_list <- normalize_ml_feature_names(gene_list)
+      inputSet <- normalize_ml_data_columns(inputSet, label)
+
+      print("Gets the intersection of genelist and expression profile")
+      common_feature <- intersect(c("ID", "OS.time", "OS", gene_list), colnames(inputSet))
+      missing_required <- setdiff(c("ID", "OS.time", "OS"), common_feature)
+      if (length(missing_required) > 0L) {
+        stop(paste0(label, " is missing required columns: ",
+                    paste(missing_required, collapse = ", ")), call. = FALSE)
+      }
+      if (length(common_feature) <= 3L) {
+        stop(paste0(label, " has no candidate genes present after name normalization"),
+             call. = FALSE)
+      }
+
+      dropped <- setdiff(gene_list, common_feature[-c(1:3)])
+      if (length(dropped) > 0L) {
+        warning(paste0(label, " dropped candidate genes absent from the expression matrix: ",
+                       paste(dropped, collapse = ", ")), call. = FALSE)
+      }
+
+      print("Processing the input representation matrix")
+      prepped <- fit_survival_preprocess_recipe(inputSet, common_feature, label)$data
+      print("Data preprocessing completed")
+      prepped
+    }
+
+    screening_feature_names <- function(inputSet) {
+      setdiff(colnames(inputSet), c("ID", "OS.time", "OS"))
+    }
+
     SigKMcox <- function(gene_list,
                          inputSet,
                          KM_pcutoff # KM?????
     ) {
-      print("Starting the data preprocess")
-      ############### ?????#######
+      inputSet <- prepare_core_screening_input(gene_list, inputSet, "ML.Corefeature.Prog.Screen KM prefilter")
+      features <- screening_feature_names(inputSet)
 
-      print("Rejecting a null value")
-
-      # ????????0
-      # table(is.na(inputSet))
-      inputSet[is.na(inputSet)] <- 0
-      # table(is.na(inputSet))
-      inputSet <- inputSet %>% as.data.frame()
-      inputSet$OS.time <- as.numeric(inputSet$OS.time) # ?????
-      inputSet <- inputSet[inputSet$OS.time > 0, ] # ?????0
-
-      # print("Correcting gene set")
-      # #?????? ??????ALIAS?ENTREZID? ??????SYMBOL,????
-      # gene.df <- bitr(gene_list, fromType = "ALIAS",
-      #                 toType = c("ENTREZID"),
-      #                 OrgDb = org.Hs.eg.db)
-      # gene.df1 <- bitr(gene.df$ENTREZID, fromType = "ENTREZID",
-      #                  toType = c("SYMBOL"),
-      #                  OrgDb = org.Hs.eg.db)
-      # gene_list <- gene.df1$SYMBOL
-      # write.table(gene_list, "1.ID_transformed_genelist.txt",row.names = F, quote = F)
-
-      # ?genelist??????????????
-      gene_list <- gsub("-", ".", gene_list)
-      gene_list <- gsub("_", ".", gene_list)
-      colnames(inputSet)[4:ncol(inputSet)] <- gsub("-", ".", colnames(inputSet)[4:ncol(inputSet)])
-      colnames(inputSet)[4:ncol(inputSet)] <- gsub("_", ".", colnames(inputSet)[4:ncol(inputSet)])
-
-      print("Gets the intersection of genelist and expression profile")
-      # ??genelist???????
-      comsa1 <- intersect(colnames(inputSet)[4:ncol(inputSet)], gene_list)
-      # write.table(comsa1,"2.intersection_genelist_exprSet_gene.txt", row.names = F, quote = F)
-
-      print("Processing the  input representation matrix")
-      # ????????????
-      inputSet <- inputSet[, c("ID", "OS.time", "OS", comsa1)]
-
-      inputSet[, c(2:ncol(inputSet))] <- apply(inputSet[, c(2:ncol(inputSet))], 2, as.numeric)
-      inputSet <- as.data.frame(inputSet)
-      # rownames(inputSet) <- inputSet$ID
-
-      print("Data preprocessing completed")
-      # ?????????
       display.progress <- function(index, totalN, breakN = 20) {
-        if (index %% ceiling(totalN / breakN) == 0) {
+        if (totalN > 0L && index %% ceiling(totalN / breakN) == 0) {
           cat(paste(round(index * 100 / totalN), "% ", sep = ""))
         }
       }
 
+      print("Stating the KM selection")
+      kmoutput <- data.frame()
 
-      ############### ???cox#######
-      print("Stating the univariable cox regression")
-
-
-      # KM??????
-      kmoutput <- NULL
-
-      for (i in 1:ncol(inputSet[, 4:ncol(inputSet)])) {
-        display.progress(index = i, totalN = ncol(inputSet), breakN = 20)
-        g <- colnames(inputSet[, 4:ncol(inputSet)])[i]
-        tmp <- inputSet[, c("OS.time", "OS", g)]
-        tmp$group <- ifelse(tmp[, 3] > median(tmp[, 3]), "High", "Low")
-        fitd <- survdiff(Surv(OS.time, OS) ~ group, data = tmp, na.action = na.exclude)
-        p.val <- 1 - pchisq(fitd$chisq, length(fitd$n) - 1)
+      for (i in seq_along(features)) {
+        display.progress(index = i, totalN = length(features), breakN = 20)
+        g <- features[[i]]
+        tmp <- inputSet[, c("OS.time", "OS", g), drop = FALSE]
+        if (length(unique(tmp[[g]])) < 2L) {
+          next
+        }
+        group <- ifelse(tmp[[g]] > stats::median(tmp[[g]]), "High", "Low")
+        if (length(unique(group)) < 2L) {
+          next
+        }
+        tmp$group <- factor(group, levels = c("Low", "High"))
+        p.val <- tryCatch({
+          fitd <- survival::survdiff(
+            survival::Surv(OS.time, OS) ~ group,
+            data = tmp,
+            na.action = stats::na.exclude
+          )
+          stats::pchisq(fitd$chisq, length(fitd$n) - 1, lower.tail = FALSE)
+        }, error = function(e) NA_real_)
         kmoutput <- rbind(kmoutput, data.frame(
           gene = g,
           pvalue = p.val,
-          stringsAsFactors = F
+          stringsAsFactors = FALSE
         ))
       }
 
-      # write.csv(kmoutput,"KM_results.csv")
-
       print("Finished the KM selection")
-
-
-      # ??????
-      selgene <- kmoutput[which(kmoutput$pvalue < KM_pcutoff), "gene"]
-      return(selgene)
+      if (nrow(kmoutput) == 0L) {
+        return(character())
+      }
+      kmoutput[which(!is.na(kmoutput$pvalue) & kmoutput$pvalue < KM_pcutoff), "gene"]
     }
 
 
@@ -289,73 +374,36 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
                           inputSet,
                           unicox_pcutoff # ??????????
     ) {
-      print("Starting the data preprocess")
-      ############### ?????#######
+      inputSet <- prepare_core_screening_input(gene_list, inputSet, "ML.Corefeature.Prog.Screen unicox prefilter")
+      features <- screening_feature_names(inputSet)
 
-      print("Rejecting a null value")
-
-      # ????????0
-      # table(is.na(inputSet))
-      inputSet[is.na(inputSet)] <- 0
-      # table(is.na(inputSet))
-      inputSet <- inputSet %>% as.data.frame()
-      inputSet$OS.time <- as.numeric(inputSet$OS.time) # ?????
-      inputSet <- inputSet[inputSet$OS.time > 0, ] # ?????0
-
-      # print("Correcting gene set")
-      # #?????? ??????ALIAS?ENTREZID? ??????SYMBOL,????
-      # gene.df <- bitr(gene_list, fromType = "ALIAS",
-      #                 toType = c("ENTREZID"),
-      #                 OrgDb = org.Hs.eg.db)
-      # gene.df1 <- bitr(gene.df$ENTREZID, fromType = "ENTREZID",
-      #                  toType = c("SYMBOL"),
-      #                  OrgDb = org.Hs.eg.db)
-      # gene_list <- gene.df1$SYMBOL
-      # write.table(gene_list, "1.ID_transformed_genelist.txt",row.names = F, quote = F)
-
-      # ?genelist??????????????
-      gene_list <- gsub("-", ".", gene_list)
-      gene_list <- gsub("_", ".", gene_list)
-      colnames(inputSet)[4:ncol(inputSet)] <- gsub("-", ".", colnames(inputSet)[4:ncol(inputSet)])
-      colnames(inputSet)[4:ncol(inputSet)] <- gsub("_", ".", colnames(inputSet)[4:ncol(inputSet)])
-
-      print("Gets the intersection of genelist and expression profile")
-      # ??genelist???????
-      comsa1 <- intersect(colnames(inputSet)[4:ncol(inputSet)], gene_list)
-      # write.table(comsa1,"2.intersection_genelist_exprSet_gene.txt", row.names = F, quote = F)
-
-      print("Processing the  input representation matrix")
-      # ????????????
-      inputSet <- inputSet[, c("ID", "OS.time", "OS", comsa1)]
-
-      inputSet[, c(2:ncol(inputSet))] <- apply(inputSet[, c(2:ncol(inputSet))], 2, as.numeric)
-      inputSet <- as.data.frame(inputSet)
-      # rownames(inputSet) <- inputSet$ID
-
-      print("Data preprocessing completed")
-      # ?????????
       display.progress <- function(index, totalN, breakN = 20) {
-        if (index %% ceiling(totalN / breakN) == 0) {
+        if (totalN > 0L && index %% ceiling(totalN / breakN) == 0) {
           cat(paste(round(index * 100 / totalN), "% ", sep = ""))
         }
       }
 
-
-      ############### ???cox#######
       print("Stating the univariable cox regression")
-
       unicox <- data.frame()
-      for (i in 1:ncol(inputSet[, 4:ncol(inputSet)])) {
-        display.progress(index = i, totalN = ncol(inputSet[, 4:ncol(inputSet)]))
-        gene <- colnames(inputSet[, 4:ncol(inputSet)])[i]
+      for (i in seq_along(features)) {
+        display.progress(index = i, totalN = length(features))
+        gene <- features[[i]]
         tmp <- data.frame(
-          expr = as.numeric(inputSet[, 4:ncol(inputSet)][, i]),
+          expr = as.numeric(inputSet[[gene]]),
           futime = inputSet$OS.time,
           fustat = inputSet$OS,
-          stringsAsFactors = F
+          stringsAsFactors = FALSE
         )
-        cox <- coxph(Surv(futime, fustat) ~ expr, data = tmp)
-        coxSummary <- summary(cox)
+        if (length(unique(tmp$expr)) < 2L) {
+          next
+        }
+        coxSummary <- tryCatch({
+          cox <- survival::coxph(survival::Surv(futime, fustat) ~ expr, data = tmp)
+          summary(cox)
+        }, error = function(e) NULL)
+        if (is.null(coxSummary) || nrow(coxSummary$coefficients) == 0L) {
+          next
+        }
         unicox <- rbind.data.frame(unicox,
           data.frame(
             gene = gene,
@@ -364,29 +412,71 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
             pvalue = as.numeric(coxSummary$coefficients[, "Pr(>|z|)"])[1],
             lower = as.numeric(coxSummary$conf.int[, 3][1]),
             upper = as.numeric(coxSummary$conf.int[, 4][1]),
-            stringsAsFactors = F
+            stringsAsFactors = FALSE
           ),
-          stringsAsFactors = F
+          stringsAsFactors = FALSE
         )
       }
 
-      # write.csv(unicox,"3.unicox_results.csv")
-
       print("Finished the univariable cox regression")
+      if (nrow(unicox) == 0L) {
+        return(character())
+      }
+      unicox[which(!is.na(unicox$pvalue) & unicox$pvalue < unicox_pcutoff), "gene"]
+    }
+  }
+
+  valid_core_screen_methods <- c("RSF", "Enet", "Xgboost", "SVM-REF",
+                                 "Lasso", "CoxBoost", "StepCox")
+  if (identical(single_ml, "Boruta")) {
+    stop(
+      "Boruta core-feature screening has been removed because it duplicated RSF ",
+      "after the survival-aware fix. Use single_ml = 'RSF' for survival-aware ",
+      "random-forest feature screening.",
+      call. = FALSE
+    )
+  }
+  if (identical(mode, "single") &&
+      (is.null(single_ml) || length(single_ml) != 1L ||
+       is.na(single_ml) || !single_ml %in% valid_core_screen_methods)) {
+    stop(paste0(
+      "single_ml must be one of: ",
+      paste(valid_core_screen_methods, collapse = ", ")
+    ), call. = FALSE)
+  }
 
 
-      # ??????
-      selgene <- unicox[which(unicox$pvalue < unicox_pcutoff), "gene"]
-      return(selgene)
-      # write.table(selgene,paste("4.unicox_selected_cutoff_",unicox_pcutoff,"_genes.txt",sep = ""),row.names = F, quote = F)
+  needs_xgboost <- identical(mode, "all") ||
+    identical(mode, "all_without_SVM") ||
+    identical(single_ml, "Xgboost")
+  if (needs_xgboost) {
+    if (!requireNamespace("xgboost", quietly = TRUE)) {
+      stop(
+        "ML.Corefeature.Prog.Screen single_ml='Xgboost' or Xgboost-containing modes require the optional xgboost package; install xgboost or choose a non-Xgboost mode.",
+        call. = FALSE
+      )
     }
   }
 
   InputMatrix_pre <- InputMatrix
   colnames(InputMatrix_pre) <- gsub("-", ".", colnames(InputMatrix_pre))
   genelist.1 <- SigUnicox(gene_list = candidate_genes, inputSet = InputMatrix_pre, unicox_pcutoff = 0.05)
+  if (length(genelist.1) < 1L) {
+    stop(
+      "No genes passed the univariate Cox prefilter in ML.Corefeature.Prog.Screen; ",
+      "relax the cutoff or provide candidate genes with stronger survival signal.",
+      call. = FALSE
+    )
+  }
 
   genelist.2 <- SigKMcox(gene_list = genelist.1, inputSet = InputMatrix_pre, KM_pcutoff = 0.05)
+  if (length(genelist.2) < 1L) {
+    stop(
+      "No genes passed the KM prefilter in ML.Corefeature.Prog.Screen; ",
+      "relax the cutoff or provide candidate genes with stronger survival signal.",
+      call. = FALSE
+    )
+  }
 
   candidate_genes <- genelist.2
 
@@ -402,8 +492,8 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
 
   # Replace '-' in column names with '.'
 
-  candidate_genes <- gsub("-", ".", candidate_genes)
-  colnames(InputMatrix) <- gsub("-", ".", colnames(InputMatrix))
+  candidate_genes <- normalize_ml_feature_names(candidate_genes)
+  colnames(InputMatrix) <- normalize_ml_feature_names(colnames(InputMatrix))
 
 
   # Matching candidate genes to genes in each cohort
@@ -425,18 +515,13 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
     message("--- Data preprocessing ---")
     # Data preprocessing
 
-    # Matching candidate genes to genes in each cohort
-
-    InputMatrix <- InputMatrix[, common_feature]
-    InputMatrix[, -c(1:3)] <- apply(InputMatrix[, -c(1:3)], 2, as.numeric)
-    InputMatrix[, c(2:3)] <- apply(InputMatrix[, c(2:3)], 2, as.numeric)
-    InputMatrix <- InputMatrix[!is.na(InputMatrix$OS.time) & !is.na(InputMatrix$OS), ]
-    InputMatrix <- InputMatrix[InputMatrix$OS.time > 0, ]
-
-    InputMatrix[, -c(1:3)] <- apply(InputMatrix[, -c(1:3)], 2, function(x) {
-      x[is.na(x)] <- mean(x, na.rm = T)
-      return(x)
-    })
+    # Reuse the survival ML preprocessing contract so screening does not diverge
+    # from model development on NA handling, event coding, or ID validation.
+    InputMatrix <- fit_survival_preprocess_recipe(
+      InputMatrix,
+      common_feature,
+      label = "ML.Corefeature.Prog.Screen input"
+    )$data
 
     est_dd <- as.data.frame(InputMatrix)[, common_feature[-1]]
     pre_var <- common_feature[-c(1:3)]
@@ -557,33 +642,8 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
 
       ##### 3.SVM-REF ###########
       message("--- 3.SVM-REF  ---")
-      print("This step will probably take several hours")
-
-
-      input <- est_dd[, -1]
-
-
-
-      # 10CV (k-fold crossValidation?
-      svmRFE(input, k = 10, halve.above = 100) # ??????????
-      nfold <- 10
-      nrows <- nrow(input)
-      folds <- rep(1:nfold, len = nrows)[sample(nrows)]
-      folds <- lapply(1:nfold, function(x) which(folds == x))
-      results <- lapply(folds, svmRFE.wrap, input, k = 10, halve.above = 100) # ????
-      top.features <- WriteFeatures(results, input, save = F) # ??????
-      n.features <- nrow(top.features)
-      if (n.features > 300) {
-        n.svm <- 300
-      } else {
-        n.svm <- n.features
-      }
-
-      featsweep <- base::lapply(1:n.svm, FeatSweep.wrap, results, input)
-
-      no.info <- min(prop.table(table(input[, 1])))
-      errors <- sapply(featsweep, function(x) ifelse(is.null(x), NA, x$error))
-      fea <- top.features[1:which.min(errors), "FeatureName"]
+      message("Using survival-SVM permutation importance with OS.time/OS")
+      fea <- survival_svm_screen(est_dd, seed)
 
       result <- data.frame(
         method = c(rep("SVM-REF", length(fea))),
@@ -592,79 +652,10 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
 
       selected.feature <- rbind(selected.feature, result)
 
-      ##### 4.Boruta ###########
-      set.seed(seed)
+      ##### 4.Xgboost ###########
 
-      message("--- 4.Boruta  ---")
-
-      boruta <- Boruta(
-        x = as.matrix(est_dd[, -c(1, 2)]), y = as.factor(est_dd[, c(2)]), pValue = 0.01, mcAdj = T,
-        maxRuns = 1000
-      )
-      boruta.imp <- function(x) {
-        imp <- reshape2::melt(x$ImpHistory, na.rm = T)[, -1]
-        colnames(imp) <- c("Variable", "Importance")
-        imp <- imp[is.finite(imp$Importance), ]
-
-        variableGrp <- data.frame(
-          Variable = names(x$finalDecision),
-          finalDecision = x$finalDecision
-        )
-
-        showGrp <- data.frame(
-          Variable = c("shadowMax", "shadowMean", "shadowMin"),
-          finalDecision = c("shadowMax", "shadowMean", "shadowMin")
-        )
-
-        variableGrp <- rbind(variableGrp, showGrp)
-
-        boruta.variable.imp <- merge(imp, variableGrp, all.x = T)
-
-        sortedVariable <- boruta.variable.imp %>%
-          group_by(Variable) %>%
-          summarise(median = median(Importance)) %>%
-          arrange(median)
-        sortedVariable <- as.vector(sortedVariable$Variable)
-
-
-        boruta.variable.imp$Variable <- factor(boruta.variable.imp$Variable, levels = sortedVariable)
-
-        invisible(boruta.variable.imp)
-      }
-
-      boruta.variable.imp <- boruta.imp(boruta)
-      # head(boruta.variable.imp)
-      boruta.finalVars <- data.frame(Item = getSelectedAttributes(boruta, withTentative = T), Type = "Boruta")
-
-      result <- data.frame(
-        method = c(rep("Boruta", length(boruta.finalVars$Item))),
-        selected.fea = boruta.finalVars$Item
-      )
-
-      selected.feature <- rbind(selected.feature, result)
-
-
-      ##### 5.Xgboost ###########
-
-      message("--- 5.Xgboost  ---")
-      train <- apply(est_dd[, -c(1)], 2, as.numeric) %>% as.data.frame()
-      train_matrix <- sparse.model.matrix(OS ~ . - 1, data = train)
-      train_label <- as.numeric(train$OS)
-      train_fin <- list(data = train_matrix, label = train_label)
-      dtrain <- xgboost::xgb.DMatrix(data = train_fin$data, label = train_fin$label)
-      # ????
-      xgb <- xgboost::xgboost(
-        data = dtrain, max_depth = 6, eta = 0.5,
-        objective = "binary:logistic", nround = 25
-      )
-      # ???????
-      importance <- xgboost::xgb.importance(train_matrix@Dimnames[[2]], model = xgb)
-      head(importance)
-      importance$rel.imp <- importance$Gain / max(importance$Gain)
-
-      # cutoff0.05
-      xgboost.variable.imp <- importance[!importance$rel.imp < 0.05, ]
-      xgboost.finalVars <- xgboost.variable.imp$Feature
+      message("--- 4.Xgboost  ---")
+      xgboost.finalVars <- survival_xgboost_screen(est_dd, seed)
 
       result <- data.frame(
         method = c(rep("Xgboost", length(xgboost.finalVars))),
@@ -674,68 +665,30 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
       selected.feature <- rbind(selected.feature, result)
 
 
-      ##### 6.RSF ###########
-      message("--- 6.RSF  ---")
+	      ##### 5.RSF ###########
+	      message("--- 5.RSF  ---")
 
-      fit <- randomForestSRC::rfsrc(Surv(OS.time, OS) ~ .,
-        data = est_dd,
-        ntree = 1000, nodesize = rf_nodesize, # ???????
-        splitrule = "logrank",
-        importance = T,
-        proximity = T,
-        forest = T,
-        seed = seed
-      )
-      set.seed(seed)
-      rid <- randomForestSRC::var.select(object = fit, conservative = "high")
-      rid <- rid$topvars
-
-      result <- data.frame(
-        method = c(rep("RSF", length(rid))),
-        selected.fea = rid
-      )
-
-      selected.feature <- rbind(selected.feature, result)
+	      rid <- screen_rsf_vars(est_dd, rf_nodesize, seed)
+	      selected.feature <- append_screen_result(selected.feature, "RSF", rid)
 
 
-      ##### 7.CoxBoost ###########
-      message("--- 7.CoxBoost  ---")
+	      ##### 6.CoxBoost ###########
+	      message("--- 6.CoxBoost  ---")
 
-      set.seed(seed)
-      pen <- optimCoxBoostPenalty(est_dd[, "OS.time"], est_dd[, "OS"], as.matrix(est_dd[, -c(1, 2)]),
-        trace = TRUE, start.penalty = 500, parallel = T
-      )
+	      rid <- screen_coxboost_vars(est_dd, seed)
+	      selected.feature <- append_screen_result(selected.feature, "CoxBoost", rid)
 
-      cv.res <- cv.CoxBoost(est_dd[, "OS.time"], est_dd[, "OS"], as.matrix(est_dd[, -c(1, 2)]),
-        maxstepno = 500, K = 10, type = "verweij", penalty = pen$penalty
-      )
-      fit <- CoxBoost(est_dd[, "OS.time"], est_dd[, "OS"], as.matrix(est_dd[, -c(1, 2)]),
-        stepno = cv.res$optimal.step, penalty = pen$penalty
-      )
-      rid <- as.data.frame(coef(fit))
-      rid$id <- rownames(rid)
-      rid <- rid[which(rid$`coef(fit)` != 0), "id"]
-      result <- data.frame(
-        method = c(rep("CoxBoost", length(rid))),
-        selected.fea = rid
-      )
+      ##### 7.StepCox ###########
+	      message("--- 7.StepCox ---")
 
-      selected.feature <- rbind(selected.feature, result)
-
-      ##### 8.StepCox ###########
-      message("--- 8.StepCox ---")
-
-      for (direction in c("both", "backward", "forward")) {
-        fit <- stats::step(coxph(Surv(OS.time, OS) ~ ., est_dd), direction = direction)
-        rid <- names(coef(fit)) # ?????P????????????????
-
-        result <- data.frame(
-          method = c(rep(paste0("StepCox", "+", direction), length(rid))),
-          selected.fea = rid
-        )
-
-        selected.feature <- rbind(selected.feature, result)
-      }
+	      for (direction in c("both", "backward", "forward")) {
+	        rid <- screen_stepcox_vars(est_dd, direction)
+	        selected.feature <- append_screen_result(
+	          selected.feature,
+	          paste0("StepCox", "+", direction),
+	          rid
+	        )
+	      }
 
       return(selected.feature)
     } else if (mode == "single") {
@@ -855,30 +808,8 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
       } else if (single_ml == "SVM-REF") {
         ##### 3.SVM-REF ###########
         message("--- 3.SVM-REF  ---")
-        print("This step will probably take several hours")
-
-
-        input <- est_dd[, -1]
-        # 10CV (k-fold crossValidation?
-        svmRFE(input, k = 10, halve.above = 100) # ??????????
-        nfold <- 10
-        nrows <- nrow(input)
-        folds <- rep(1:nfold, len = nrows)[sample(nrows)]
-        folds <- lapply(1:nfold, function(x) which(folds == x))
-        results <- lapply(folds, svmRFE.wrap, input, k = 10, halve.above = 100) # ????
-        top.features <- WriteFeatures(results, input, save = F) # ??????
-        n.features <- nrow(top.features)
-        if (n.features > 300) {
-          n.svm <- 300
-        } else {
-          n.svm <- n.features
-        }
-
-        featsweep <- base::lapply(1:n.svm, FeatSweep.wrap, results, input)
-
-        no.info <- min(prop.table(table(input[, 1])))
-        errors <- sapply(featsweep, function(x) ifelse(is.null(x), NA, x$error))
-        fea <- top.features[1:which.min(errors), "FeatureName"]
+        message("Using survival-SVM permutation importance with OS.time/OS")
+        fea <- survival_svm_screen(est_dd, seed)
 
         result <- data.frame(
           method = c(rep("SVM-REF", length(fea))),
@@ -888,80 +819,11 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
         selected.feature <- rbind(selected.feature, result)
 
         return(selected.feature)
-      } else if (single_ml == "Boruta") {
-        ##### 4.Boruta ###########
-        set.seed(seed)
-
-        message("--- 4.Boruta  ---")
-
-        boruta <- Boruta(
-          x = as.matrix(est_dd[, -c(1, 2)]), y = as.factor(est_dd[, c(2)]), pValue = 0.01, mcAdj = T,
-          maxRuns = 1000
-        )
-        boruta.imp <- function(x) {
-          imp <- reshape2::melt(x$ImpHistory, na.rm = T)[, -1]
-          colnames(imp) <- c("Variable", "Importance")
-          imp <- imp[is.finite(imp$Importance), ]
-
-          variableGrp <- data.frame(
-            Variable = names(x$finalDecision),
-            finalDecision = x$finalDecision
-          )
-
-          showGrp <- data.frame(
-            Variable = c("shadowMax", "shadowMean", "shadowMin"),
-            finalDecision = c("shadowMax", "shadowMean", "shadowMin")
-          )
-
-          variableGrp <- rbind(variableGrp, showGrp)
-
-          boruta.variable.imp <- merge(imp, variableGrp, all.x = T)
-
-          sortedVariable <- boruta.variable.imp %>%
-            group_by(Variable) %>%
-            summarise(median = median(Importance)) %>%
-            arrange(median)
-          sortedVariable <- as.vector(sortedVariable$Variable)
-
-
-          boruta.variable.imp$Variable <- factor(boruta.variable.imp$Variable, levels = sortedVariable)
-
-          invisible(boruta.variable.imp)
-        }
-
-        boruta.variable.imp <- boruta.imp(boruta)
-        # head(boruta.variable.imp)
-        boruta.finalVars <- data.frame(Item = getSelectedAttributes(boruta, withTentative = T), Type = "Boruta")
-
-        result <- data.frame(
-          method = c(rep("Boruta", length(boruta.finalVars$Item))),
-          selected.fea = boruta.finalVars$Item
-        )
-
-        selected.feature <- rbind(selected.feature, result)
-        return(selected.feature)
       } else if (single_ml == "Xgboost") {
-        ##### 5.Xgboost ###########
+        ##### 4.Xgboost ###########
 
-        message("--- 5.Xgboost  ---")
-        train <- apply(est_dd[, -c(1)], 2, as.numeric) %>% as.data.frame()
-        train_matrix <- sparse.model.matrix(OS ~ . - 1, data = train)
-        train_label <- as.numeric(train$OS)
-        train_fin <- list(data = train_matrix, label = train_label)
-        dtrain <- xgboost::xgb.DMatrix(data = train_fin$data, label = train_fin$label)
-        # ????
-        xgb <- xgboost::xgboost(
-          data = dtrain, max_depth = 6, eta = 0.5,
-          objective = "binary:logistic", nround = 25
-        )
-        # ???????
-        importance <- xgboost::xgb.importance(train_matrix@Dimnames[[2]], model = xgb)
-        head(importance)
-        importance$rel.imp <- importance$Gain / max(importance$Gain)
-
-        # cutoff0.05
-        xgboost.variable.imp <- importance[!importance$rel.imp < 0.05, ]
-        xgboost.finalVars <- xgboost.variable.imp$Feature
+        message("--- 4.Xgboost  ---")
+        xgboost.finalVars <- survival_xgboost_screen(est_dd, seed)
 
         result <- data.frame(
           method = c(rep("Xgboost", length(xgboost.finalVars))),
@@ -971,71 +833,33 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
         selected.feature <- rbind(selected.feature, result)
 
         return(selected.feature)
-      } else if (single_ml == "RSF") {
-        ##### 6.RSF ###########
-        message("--- 6.RSF  ---")
+	      } else if (single_ml == "RSF") {
+	        ##### 5.RSF ###########
+	        message("--- 5.RSF  ---")
 
-        fit <- randomForestSRC::rfsrc(Surv(OS.time, OS) ~ .,
-          data = est_dd,
-          ntree = 1000, nodesize = rf_nodesize,
-          splitrule = "logrank",
-          importance = T,
-          proximity = T,
-          forest = T,
-          seed = seed
-        )
-        set.seed(seed)
-        rid <- randomForestSRC::var.select(object = fit, conservative = "high")
-        rid <- rid$topvars
+	        rid <- screen_rsf_vars(est_dd, rf_nodesize, seed)
+	        selected.feature <- append_screen_result(selected.feature, "RSF", rid)
 
-        result <- data.frame(
-          method = c(rep("RSF", length(rid))),
-          selected.fea = rid
-        )
+	        return(selected.feature)
+	      } else if (single_ml == "CoxBoost") {
+	        ##### 6.CoxBoost ###########
+	        message("--- 6.CoxBoost  ---")
 
-        selected.feature <- rbind(selected.feature, result)
+	        rid <- screen_coxboost_vars(est_dd, seed)
+	        selected.feature <- append_screen_result(selected.feature, "CoxBoost", rid)
+	        return(selected.feature)
+	      } else if (single_ml == "StepCox") {
+	        ##### 7.StepCox ###########
+	        message("--- 7.StepCox ---")
 
-        return(selected.feature)
-      } else if (single_ml == "CoxBoost") {
-        ##### 7.CoxBoost ###########
-        message("--- 7.CoxBoost  ---")
-
-        set.seed(seed)
-        pen <- optimCoxBoostPenalty(est_dd[, "OS.time"], est_dd[, "OS"], as.matrix(est_dd[, -c(1, 2)]),
-          trace = TRUE, start.penalty = 500, parallel = T
-        )
-
-        cv.res <- cv.CoxBoost(est_dd[, "OS.time"], est_dd[, "OS"], as.matrix(est_dd[, -c(1, 2)]),
-          maxstepno = 500, K = 10, type = "verweij", penalty = pen$penalty
-        )
-        fit <- CoxBoost(est_dd[, "OS.time"], est_dd[, "OS"], as.matrix(est_dd[, -c(1, 2)]),
-          stepno = cv.res$optimal.step, penalty = pen$penalty
-        )
-        rid <- as.data.frame(coef(fit))
-        rid$id <- rownames(rid)
-        rid <- rid[which(rid$`coef(fit)` != 0), "id"]
-        result <- data.frame(
-          method = c(rep("CoxBoost", length(rid))),
-          selected.fea = rid
-        )
-
-        selected.feature <- rbind(selected.feature, result)
-        return(selected.feature)
-      } else if (single_ml == "StepCox") {
-        ##### 8.StepCox ###########
-        message("--- 8.StepCox ---")
-
-        for (direction in c("both", "backward", "forward")) {
-          fit <- stats::step(coxph(Surv(OS.time, OS) ~ ., est_dd), direction = direction)
-          rid <- names(coef(fit)) #
-
-          result <- data.frame(
-            method = c(rep(paste0("StepCox", "+", direction), length(rid))),
-            selected.fea = rid
-          )
-
-          selected.feature <- rbind(selected.feature, result)
-        }
+	        for (direction in c("both", "backward", "forward")) {
+	          rid <- screen_stepcox_vars(est_dd, direction)
+	          selected.feature <- append_screen_result(
+	            selected.feature,
+	            paste0("StepCox", "+", direction),
+	            rid
+	          )
+	        }
 
         return(selected.feature)
       } else {
@@ -1188,79 +1012,10 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
       #
       # selected.feature <- rbind(selected.feature,result)
 
-      ##### 3.Boruta ###########
-      set.seed(seed)
+      ##### 3.Xgboost ###########
 
-      message("--- 3.Boruta  ---")
-
-      boruta <- Boruta(
-        x = as.matrix(est_dd[, -c(1, 2)]), y = as.factor(est_dd[, c(2)]), pValue = 0.01, mcAdj = T,
-        maxRuns = 1000
-      )
-      boruta.imp <- function(x) {
-        imp <- reshape2::melt(x$ImpHistory, na.rm = T)[, -1]
-        colnames(imp) <- c("Variable", "Importance")
-        imp <- imp[is.finite(imp$Importance), ]
-
-        variableGrp <- data.frame(
-          Variable = names(x$finalDecision),
-          finalDecision = x$finalDecision
-        )
-
-        showGrp <- data.frame(
-          Variable = c("shadowMax", "shadowMean", "shadowMin"),
-          finalDecision = c("shadowMax", "shadowMean", "shadowMin")
-        )
-
-        variableGrp <- rbind(variableGrp, showGrp)
-
-        boruta.variable.imp <- merge(imp, variableGrp, all.x = T)
-
-        sortedVariable <- boruta.variable.imp %>%
-          group_by(Variable) %>%
-          summarise(median = median(Importance)) %>%
-          arrange(median)
-        sortedVariable <- as.vector(sortedVariable$Variable)
-
-
-        boruta.variable.imp$Variable <- factor(boruta.variable.imp$Variable, levels = sortedVariable)
-
-        invisible(boruta.variable.imp)
-      }
-
-      boruta.variable.imp <- boruta.imp(boruta)
-      # head(boruta.variable.imp)
-      boruta.finalVars <- data.frame(Item = getSelectedAttributes(boruta, withTentative = T), Type = "Boruta")
-
-      result <- data.frame(
-        method = c(rep("Boruta", length(boruta.finalVars$Item))),
-        selected.fea = boruta.finalVars$Item
-      )
-
-      selected.feature <- rbind(selected.feature, result)
-
-
-      ##### 4.Xgboost ###########
-
-      message("--- 4.Xgboost  ---")
-      train <- apply(est_dd[, -c(1)], 2, as.numeric) %>% as.data.frame()
-      train_matrix <- sparse.model.matrix(OS ~ . - 1, data = train)
-      train_label <- as.numeric(train$OS)
-      train_fin <- list(data = train_matrix, label = train_label)
-      dtrain <- xgboost::xgb.DMatrix(data = train_fin$data, label = train_fin$label)
-      # ????
-      xgb <- xgboost::xgboost(
-        data = dtrain, max_depth = 6, eta = 0.5,
-        objective = "binary:logistic", nround = 25
-      )
-      # ???????
-      importance <- xgboost::xgb.importance(train_matrix@Dimnames[[2]], model = xgb)
-      head(importance)
-      importance$rel.imp <- importance$Gain / max(importance$Gain)
-
-      # cutoff0.05
-      xgboost.variable.imp <- importance[!importance$rel.imp < 0.05, ]
-      xgboost.finalVars <- xgboost.variable.imp$Feature
+      message("--- 3.Xgboost  ---")
+      xgboost.finalVars <- survival_xgboost_screen(est_dd, seed)
 
       result <- data.frame(
         method = c(rep("Xgboost", length(xgboost.finalVars))),
@@ -1270,68 +1025,30 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
       selected.feature <- rbind(selected.feature, result)
 
 
-      ##### 5.RSF ###########
-      message("--- 5.RSF  ---")
+	      ##### 4.RSF ###########
+	      message("--- 4.RSF  ---")
 
-      fit <- randomForestSRC::rfsrc(Surv(OS.time, OS) ~ .,
-        data = est_dd,
-        ntree = 1000, nodesize = rf_nodesize, # ???????
-        splitrule = "logrank",
-        importance = T,
-        proximity = T,
-        forest = T,
-        seed = seed
-      )
-      set.seed(seed)
-      rid <- randomForestSRC::var.select(object = fit, conservative = "high")
-      rid <- rid$topvars
-
-      result <- data.frame(
-        method = c(rep("RSF", length(rid))),
-        selected.fea = rid
-      )
-
-      selected.feature <- rbind(selected.feature, result)
+	      rid <- screen_rsf_vars(est_dd, rf_nodesize, seed)
+	      selected.feature <- append_screen_result(selected.feature, "RSF", rid)
 
 
-      ##### 6.CoxBoost ###########
-      message("--- 6.CoxBoost  ---")
+	      ##### 5.CoxBoost ###########
+	      message("--- 5.CoxBoost  ---")
 
-      set.seed(seed)
-      pen <- optimCoxBoostPenalty(est_dd[, "OS.time"], est_dd[, "OS"], as.matrix(est_dd[, -c(1, 2)]),
-        trace = TRUE, start.penalty = 500, parallel = T
-      )
+	      rid <- screen_coxboost_vars(est_dd, seed)
+	      selected.feature <- append_screen_result(selected.feature, "CoxBoost", rid)
 
-      cv.res <- cv.CoxBoost(est_dd[, "OS.time"], est_dd[, "OS"], as.matrix(est_dd[, -c(1, 2)]),
-        maxstepno = 500, K = 10, type = "verweij", penalty = pen$penalty
-      )
-      fit <- CoxBoost(est_dd[, "OS.time"], est_dd[, "OS"], as.matrix(est_dd[, -c(1, 2)]),
-        stepno = cv.res$optimal.step, penalty = pen$penalty
-      )
-      rid <- as.data.frame(coef(fit))
-      rid$id <- rownames(rid)
-      rid <- rid[which(rid$`coef(fit)` != 0), "id"]
-      result <- data.frame(
-        method = c(rep("CoxBoost", length(rid))),
-        selected.fea = rid
-      )
+      ##### 6.StepCox ###########
+	      message("--- 6.StepCox ---")
 
-      selected.feature <- rbind(selected.feature, result)
-
-      ##### 7.StepCox ###########
-      message("--- 7.StepCox ---")
-
-      for (direction in c("both", "backward", "forward")) {
-        fit <- stats::step(coxph(Surv(OS.time, OS) ~ ., est_dd), direction = direction)
-        rid <- names(coef(fit)) # ?????P????????????????
-
-        result <- data.frame(
-          method = c(rep(paste0("StepCox", "+", direction), length(rid))),
-          selected.fea = rid
-        )
-
-        selected.feature <- rbind(selected.feature, result)
-      }
+	      for (direction in c("both", "backward", "forward")) {
+	        rid <- screen_stepcox_vars(est_dd, direction)
+	        selected.feature <- append_screen_result(
+	          selected.feature,
+	          paste0("StepCox", "+", direction),
+	          rid
+	        )
+	      }
 
       return(selected.feature)
     }

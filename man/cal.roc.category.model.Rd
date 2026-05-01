@@ -2,14 +2,19 @@
 % Please edit documentation in R/cal.roc.category.model.R
 \name{cal.roc.category.model}
 \alias{cal.roc.category.model}
+\alias{cal_roc_category_model}
 \title{Calculating the receiver operating characteristic after developing the category predictive model}
 \usage{
 cal.roc.category.model(res.by.ML.Dev.Pred.Category.Sig, cohort.for.cal)
+
+cal_roc_category_model(...)
 }
 \arguments{
 \item{res.by.ML.Dev.Pred.Category.Sig}{Output of function ML.Dev.Pred.Category.Sig}
 
 \item{cohort.for.cal}{A data frame with the 'ID' and 'Var' as the first two columns. Starting in the fourth column are the variables that contain variables of the model you want to build. The second column 'Var' only contains 'Y' or 'N'.}
+
+\item{...}{Arguments passed to \code{cal.roc.category.model}.}
 }
 \value{
 A list containing the receiver operating characteristic of each predictive model.

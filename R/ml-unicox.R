@@ -24,16 +24,8 @@ sig_unicox <- function(gene_list, inputSet, unicox_pcutoff = 0.05) {
   inputSet <- inputSet[inputSet$OS.time > 0, ]
 
   # Standardize gene names
-  gene_list <- gsub("-", ".", gene_list)
-  gene_list <- gsub("_", ".", gene_list)
-  colnames(inputSet)[4:ncol(inputSet)] <- gsub("-",
-    ".",
-    colnames(inputSet)[4:ncol(inputSet)]
-  )
-  colnames(inputSet)[4:ncol(inputSet)] <- gsub("_",
-    ".",
-    colnames(inputSet)[4:ncol(inputSet)]
-  )
+  gene_list <- normalize_ml_feature_names(gene_list)
+  colnames(inputSet) <- normalize_ml_feature_names(colnames(inputSet))
 
   message("Gets the intersection of genelist and expression profile")
   # Get intersection of gene list and expression profile
@@ -51,6 +43,10 @@ sig_unicox <- function(gene_list, inputSet, unicox_pcutoff = 0.05) {
   message("Starting the univariable cox regression")
 
   unicox <- data.frame()
+  if (length(comsa1) == 0) {
+    return(character())
+  }
+
   for (i in seq_len(ncol(inputSet[, 4:ncol(inputSet)]))) {
     display_progress(
       index = i,
@@ -63,7 +59,13 @@ sig_unicox <- function(gene_list, inputSet, unicox_pcutoff = 0.05) {
       fustat = inputSet$OS,
       stringsAsFactors = FALSE
     )
-    cox <- survival::coxph(survival::Surv(futime, fustat) ~ expr, data = tmp)
+    cox <- tryCatch(
+      survival::coxph(survival::Surv(futime, fustat) ~ expr, data = tmp),
+      error = function(e) NULL
+    )
+    if (is.null(cox)) {
+      next
+    }
     coxSummary <- summary(cox)
     unicox <- rbind.data.frame(
       unicox,
@@ -83,6 +85,9 @@ sig_unicox <- function(gene_list, inputSet, unicox_pcutoff = 0.05) {
   message("Finished the univariable cox regression")
 
   # Select significant genes
+  if (nrow(unicox) == 0) {
+    return(character())
+  }
   selgene <- unicox[which(unicox$pvalue < unicox_pcutoff), "gene"]
   return(selgene)
 }

@@ -2,6 +2,7 @@
 % Please edit documentation in R/cal_RS_pre.prog.sig.R
 \name{cal_RS_pre.prog.sig}
 \alias{cal_RS_pre.prog.sig}
+\alias{cal_rs_pre_prog_sig}
 \title{Calculating the risk score of the signatures from the previous paper.}
 \usage{
 cal_RS_pre.prog.sig(
@@ -10,6 +11,8 @@ cal_RS_pre.prog.sig(
   type.sig,
   list_input_data
 )
+
+cal_rs_pre_prog_sig(...)
 }
 \arguments{
 \item{use_your_own_collected_sig}{Whether to use your own collected signatures. T or F.}
@@ -19,6 +22,8 @@ cal_RS_pre.prog.sig(
 \item{type.sig}{If the use_your_own_collected_sig is F, here we collected some signatures of the LGG, GBM, and Glioma. You can choose c('Glioma', 'LGG', 'GBM'), c('Glioma'),c('GBM'), c('Glioma', 'LGG'), and some other combination for the signatures you want.}
 
 \item{list_input_data}{A list of the cohorts. Column names are 'ID', 'OS.time', 'OS', and the other variables. OS.time (Day). OS(1/0).}
+
+\item{...}{Arguments passed to \code{cal_RS_pre.prog.sig}.}
 }
 \value{
 A list of the risk score of the signature for each cohort you provide.

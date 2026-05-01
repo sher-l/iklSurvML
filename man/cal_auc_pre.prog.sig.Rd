@@ -2,6 +2,7 @@
 % Please edit documentation in R/cal_auc_pre.prog.sig.R
 \name{cal_auc_pre.prog.sig}
 \alias{cal_auc_pre.prog.sig}
+\alias{cal_auc_pre_prog_sig}
 \title{Calculate AUC scores of the previous signarues in all data}
 \usage{
 cal_auc_pre.prog.sig(
@@ -12,6 +13,8 @@ cal_auc_pre.prog.sig(
   AUC_time = NULL,
   auc_cal_method = "KM"
 )
+
+cal_auc_pre_prog_sig(...)
 }
 \arguments{
 \item{use_your_own_collected_sig}{Whether to use your own collected signatures. T or F.}
@@ -25,6 +28,8 @@ cal_auc_pre.prog.sig(
 \item{AUC_time}{c(1,2,3,4,5,6,7,...), for 1 year, 2 years, 3 years......We recommend using the shortest survival time among all queues.}
 
 \item{auc_cal_method}{'KM', 'NNE'. The default is 'KM'.}
+
+\item{...}{Arguments passed to \code{cal_auc_pre.prog.sig}.}
 }
 \value{
 A list of the AUC results of each previous signature in each cohort you provide.

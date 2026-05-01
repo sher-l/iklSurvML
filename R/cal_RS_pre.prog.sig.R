@@ -63,17 +63,11 @@ cal_RS_pre.prog.sig <- function(use_your_own_collected_sig, # 是否使用您自
     return(rs.table.list)
   }
 
-  list_input_data <- lapply(list_input_data, function(x) {
-    not.gene <- common_feature[which(!common_feature %in% colnames(x))]
-    cons.mat <- as.data.frame(matrix(rep(0, length(not.gene) * nrow(x)), nrow = nrow(x), ncol = length(not.gene)))
-    colnames(cons.mat) <- not.gene
-
-
-    x <- cbind(x, cons.mat)
-
-    x <- x[, common_feature]
-    return(x)
-  })
+  list_input_data <- prepare_previous_signature_input_data(
+    list_input_data,
+    common_feature,
+    context = "cal_RS_pre.prog.sig"
+  )
 
 
 
@@ -114,7 +108,7 @@ cal_RS_pre.prog.sig <- function(use_your_own_collected_sig, # 是否使用您自
   model.name <- unique(sig.input$model)
 
   val_dd_list <- lapply(list_input_data, function(x) {
-    x[, c("OS.time", "OS", common_feature)]
+    x[, common_feature, drop = FALSE]
   })
 
 
@@ -122,7 +116,7 @@ cal_RS_pre.prog.sig <- function(use_your_own_collected_sig, # 是否使用您自
     coef.tab <- sig.input[sig.input$model == z, c("Coef", "symbol")]
 
     val_dd_list2 <- lapply(val_dd_list, function(x) {
-      x[, c("OS.time", "OS", coef.tab$symbol)]
+      x[, c("OS.time", "OS", coef.tab$symbol), drop = FALSE]
     })
 
 

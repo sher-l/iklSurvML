@@ -2,6 +2,7 @@
 % Please edit documentation in R/cal_AUC_ml_res.R
 \name{cal_AUC_ml_res}
 \alias{cal_AUC_ml_res}
+\alias{cal_auc_ml_res}
 \title{Calculate AUC scores of Machine Learning Models in all data}
 \usage{
 cal_AUC_ml_res(
@@ -17,6 +18,8 @@ cal_AUC_ml_res(
   direction_for_stepcox = NULL,
   auc_cal_method = "KM"
 )
+
+cal_auc_ml_res(...)
 }
 \arguments{
 \item{res.by.ML.Dev.Prog.Sig}{the results of function ML.Dev.Prog.Sig}
@@ -40,6 +43,8 @@ cal_AUC_ml_res(
 \item{direction_for_stepcox}{c("both", "backward", "forward")}
 
 \item{auc_cal_method}{KM, NNE}
+
+\item{...}{Arguments passed to \code{cal_AUC_ml_res}.}
 }
 \value{
 AUC Calculation Result

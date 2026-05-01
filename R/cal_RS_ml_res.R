@@ -25,782 +25,87 @@ cal_RS_ml_res <- function(res.by.ML.Dev.Prog.Sig = NULL, # ML.Dev.Prog.Sig, å‡½æ
                           direction_for_stepcox = NULL #  c("both", "backward", "forward")
 ) {
   message("--- Data preprocessing ---")
+  single_ml <- normalize_survival_ml_name(single_ml)
+  double_ml1 <- normalize_survival_ml_name(double_ml1)
+  double_ml2 <- normalize_survival_ml_name(double_ml2)
 
-  ####  Data preprocessing #####
-  # Replace '-' in column names with '.'
-  inputmatrix.list <- lapply(inputmatrix.list, function(x) {
-    colnames(x) <- gsub("-", ".", colnames(x))
-    return(x)
+  if (is.null(res.by.ML.Dev.Prog.Sig) || is.null(res.by.ML.Dev.Prog.Sig$ml.res)) {
+    stop("res.by.ML.Dev.Prog.Sig must contain a non-empty ml.res list", call. = FALSE)
+  }
+  if (is.null(mode) || !mode %in% c("all", "single", "double")) {
+    stop("mode must be one of: all, single, double", call. = FALSE)
+  }
+  requested_models <- select_survival_model_names(
+    model_names = names(res.by.ML.Dev.Prog.Sig$ml.res),
+    mode = mode,
+    single_ml = single_ml,
+    double_ml1 = double_ml1,
+    double_ml2 = double_ml2,
+    alpha_for_enet = alpha_for_Enet,
+    direction_for_stepcox = direction_for_stepcox
+  )
+
+  data_names <- names(inputmatrix.list)
+  if (is.null(data_names)) {
+    data_names <- as.character(seq_along(inputmatrix.list))
+  }
+  inputmatrix.list <- lapply(data_names, function(nm) {
+    normalize_ml_data_columns(inputmatrix.list[[nm]], paste0("Dataset '", nm, "'"))
   })
+  names(inputmatrix.list) <- data_names
+  train_data <- normalize_ml_data_columns(train_data, "Training data")
 
+  sig.gene <- normalize_ml_feature_names(res.by.ML.Dev.Prog.Sig$Sig.genes)
+  common_feature <- normalize_ml_feature_names(c("ID", "OS.time", "OS", sig.gene))
 
-  colnames(train_data) <- gsub("-", ".", colnames(train_data))
+  preprocess_recipe <- res.by.ML.Dev.Prog.Sig$Preprocess.recipe
+  if (is.null(preprocess_recipe)) {
+    preprocessed_train <- preprocess_train_data(train_data, common_feature, return_recipe = TRUE)
+    train_data <- preprocessed_train$data
+    preprocess_recipe <- preprocessed_train$recipe
+  } else {
+    train_data <- apply_survival_preprocess_recipe(
+      train_data,
+      recipe = preprocess_recipe,
+      label = "Training data",
+      common_feature = common_feature
+    )
+  }
+  inputmatrix.list <- preprocess_data_list(
+    inputmatrix.list,
+    common_feature,
+    recipe = preprocess_recipe
+  )
 
-
-  sig.gene <- res.by.ML.Dev.Prog.Sig$Sig.genes
-
-
-  # Matching candidate genes to genes in each cohort
-  common_feature <- c("ID", "OS.time", "OS", sig.gene)
-  common_feature <- gsub("-", ".", common_feature)
-
-  for (i in names(inputmatrix.list)) {
-    common_feature <- intersect(common_feature, colnames(inputmatrix.list[[i]]))
+  if (!identical(colnames(inputmatrix.list[[1]])[1:3], c("ID", "OS.time", "OS"))) {
+    stop("inputmatrix.list datasets must have first columns ID, OS.time, OS", call. = FALSE)
   }
 
+  missing_by_dataset <- vapply(inputmatrix.list, function(x) {
+    paste(setdiff(sig.gene, colnames(x)), collapse = ", ")
+  }, character(1))
+  missing_by_dataset <- missing_by_dataset[nzchar(missing_by_dataset)]
+  if (length(missing_by_dataset) > 0) {
+    stop(paste0(
+      "Some model genes are missing from input cohorts: ",
+      paste(paste0(names(missing_by_dataset), " missing ", missing_by_dataset), collapse = "; ")
+    ), call. = FALSE)
+  }
 
-  inputmatrix.list <- lapply(inputmatrix.list, function(x) {
-    x[, common_feature]
-  })
-
-  inputmatrix.list <- lapply(inputmatrix.list, function(x) {
-    x[, -c(1:3)] <- apply(x[, -c(1:3)], 2, as.numeric)
-    return(x)
-  })
-
-  inputmatrix.list <- lapply(inputmatrix.list, function(x) {
-    x[, c(2:3)] <- apply(x[, c(2:3)], 2, as.numeric)
-    return(x)
-  })
-
-  inputmatrix.list <- lapply(inputmatrix.list, function(x) {
-    x <- x[!is.na(x$OS.time) & !is.na(x$OS), ]
-    return(x)
-  })
-
-  inputmatrix.list <- lapply(inputmatrix.list, function(x) {
-    x <- x[x$OS.time > 0, ]
-    return(x)
-  })
-  # use the mean replace the NA
-  inputmatrix.list <- lapply(inputmatrix.list, function(x) {
-    x[, -c(1:3)] <- apply(x[, -c(1:3)], 2, function(x) {
-      x[is.na(x)] <- mean(x, na.rm = T)
-      return(x)
-    })
-
-
-    return(x)
-  })
-
-
-
-
-  #### calculating the risk score of the signatures #########
+  val_dd_list <- lapply(inputmatrix.list, function(x) x[, c("OS.time", "OS", sig.gene), drop = FALSE])
+  fallback_train_data <- train_data[, c("OS.time", "OS", sig.gene), drop = FALSE]
 
   riskscore <- list()
-
-  if (mode %in% c("all", "single", "double") & identical(colnames(inputmatrix.list[[1]])[1:3], c("ID", "OS.time", "OS"))) {
-    feature.a <- res.by.ML.Dev.Prog.Sig$Sig.genes
-    feature.a <- gsub("-", ".", feature.a)
-
-    num.a <- length(feature.a)
-
-    val_dd_list <- lapply(inputmatrix.list, function(x) {
-      x[, c("OS.time", "OS", feature.a)]
-    })
-    val_dd_list2 <- val_dd_list
-
-
-    returnIDtoRS <- function(rs.table.list, rawtableID) {
-      for (i in names(rs.table.list)) {
-        rs.table.list[[i]]$ID <- rawtableID[[i]]$ID
-        rs.table.list[[i]] <- rs.table.list[[i]] %>% dplyr::select("ID", everything())
-      }
-
-      return(rs.table.list)
-    }
-
-
-    est_dd2 <- train_data[, c("OS.time", "OS", feature.a)]
-    data <- list(
-      x = t(est_dd2[, -c(1, 2)]), y = est_dd2$OS.time,
-      censoring.status = est_dd2$OS,
-      featurenames = colnames(est_dd2)[-c(1, 2)]
+  for (model_name in requested_models) {
+    rs <- calculate_survival_model_risk_scores(
+      model_name = model_name,
+      fit = res.by.ML.Dev.Prog.Sig$ml.res[[model_name]],
+      val_dd_list = val_dd_list,
+      fallback_train_data = fallback_train_data,
+      model_info = res.by.ML.Dev.Prog.Sig$Model.info[[model_name]]
     )
-
-
-    if (mode == "all") {
-      feature.ab <- feature.a
-      for (i in names(inputmatrix.list)) {
-        feature.ab <- intersect(feature.ab, colnames(inputmatrix.list[[i]]))
-      }
-
-      num.b <- length(feature.ab)
-
-
-
-      if (num.b == num.a) {
-        ml.names <- names(res.by.ML.Dev.Prog.Sig$ml.res)
-
-
-
-        for (i in ml.names[c(which(ml.names %in% c("RSF")), grep("+ RSF", ml.names, fixed = T))]) {
-          print(i)
-
-
-          fit <- res.by.ML.Dev.Prog.Sig[["ml.res"]][[i]]
-          feature.ac <- fit[["xvar.names"]]
-
-
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, x)$predicted))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-
-          riskscore[[i]] <- rs
-        }
-
-
-        for (i in ml.names[c(
-          which(ml.names %in% c("survival - SVM")), grep("+ survival-SVM", ml.names, fixed = T)
-        )]) {
-          print(i)
-
-
-          fit <- res.by.ML.Dev.Prog.Sig[["ml.res"]][[i]]
-          feature.ac <- fit[["var.names"]]
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, x)$predicted))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-
-          riskscore[[i]] <- rs
-        }
-
-
-
-        for (i in ml.names[c(which(ml.names %in% c("CoxBoost")), grep("+ CoxBoost", ml.names, fixed = T))]) {
-          print(i)
-
-          fit <- res.by.ML.Dev.Prog.Sig[["ml.res"]][[i]]
-          feature.ac <- fit[["xnames"]]
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, newdata = x[, -c(1, 2)], newtime = x[, 1], newstatus = x[, 2], type = "lp")))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-          riskscore[[i]] <- rs
-        }
-
-
-        for (i in ml.names[c(grep("Enet[", ml.names, fixed = T), grep("+ Enet", ml.names, fixed = T))]) {
-          print(i)
-
-          fit <- res.by.ML.Dev.Prog.Sig[["ml.res"]][[i]]
-          feature.ac <- fit[["glmnet.fit"]][["beta"]]@Dimnames[[1]]
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "link", newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-
-          riskscore[[i]] <- rs
-        }
-
-
-        for (i in ml.names[c(which(ml.names %in% c("GBM")), grep("+ GBM", ml.names, fixed = T))]) {
-          print(i)
-
-          fit <- res.by.ML.Dev.Prog.Sig[["ml.res"]][[i]][[1]]
-          best <- res.by.ML.Dev.Prog.Sig[["ml.res"]][[i]][[2]]
-
-          feature.ac <- fit[["var.names"]]
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, x, n.trees = best, type = "link")))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-          riskscore[[i]] <- rs
-        }
-
-        for (i in ml.names[c(which(ml.names %in% c("Lasso")), grep("+ Lasso", ml.names, fixed = T))]) {
-          print(i)
-
-          fit <- res.by.ML.Dev.Prog.Sig[["ml.res"]][[i]]
-          feature.ac <- fit[["glmnet.fit"]][["beta"]]@Dimnames[[1]]
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "link", newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-          riskscore[[i]] <- rs
-        }
-
-
-
-        for (i in ml.names[c(which(ml.names %in% c("plsRcox")), grep("+ plsRcox", ml.names, fixed = T))]) {
-          print(i)
-
-          fit <- res.by.ML.Dev.Prog.Sig[["ml.res"]][[i]]
-          feature.ac <- colnames(fit[["dataX"]])
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "lp", newdata = x[, -c(1, 2)])))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-          riskscore[[i]] <- rs
-        }
-
-
-
-
-        for (i in ml.names[which(ml.names %in% c("Ridge"))]) {
-          print(i)
-
-          fit <- res.by.ML.Dev.Prog.Sig[["ml.res"]][[i]][[1]]
-          cv.fit <- res.by.ML.Dev.Prog.Sig[["ml.res"]][[i]][[2]]
-
-          feature.ac <- fit[["beta"]]@Dimnames[[1]]
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "link", newx = as.matrix(x[, -c(1, 2)]), s = cv.fit$lambda.min)))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-          riskscore[[i]] <- rs
-        }
-
-        for (i in ml.names[c(grep("+ Ridge", ml.names, fixed = T))]) {
-          print(i)
-
-          fit <- res.by.ML.Dev.Prog.Sig[["ml.res"]][[i]]
-          feature.ac <- fit[["glmnet.fit"]][["beta"]]@Dimnames[[1]]
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "link", newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-
-          riskscore[[i]] <- rs
-        }
-
-
-
-        for (i in ml.names[c(which(ml.names %in% c("StepCox[both]", "StepCox[backward]", "StepCox[forward]")), grep("+ StepCox", ml.names, fixed = T))]) {
-          print(i)
-
-          fit <- res.by.ML.Dev.Prog.Sig[["ml.res"]][[i]]
-
-          feature.ac <- names(fit[["coefficients"]])
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = predict(fit, type = "risk", newdata = x))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-          riskscore[[i]] <- rs
-        }
-
-
-        for (i in ml.names[grep("SuperPC", ml.names, fixed = T)]) {
-          print(i)
-
-          fit <- res.by.ML.Dev.Prog.Sig[["ml.res"]][[i]][[1]]
-          cv.fit <- res.by.ML.Dev.Prog.Sig[["ml.res"]][[i]][[2]]
-
-
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ab)]
-          })
-
-          rs <- lapply(val_dd_list, function(w) {
-            test <- list(x = t(w[, -c(1, 2)]), y = w$OS.time, censoring.status = w$OS, featurenames = colnames(w)[-c(1, 2)])
-            ff <- superpc.predict(fit, data, test, threshold = cv.fit$thresholds[which.max(cv.fit[["scor"]][1, ])], n.components = 1)
-            rr <- as.numeric(ff$v.pred)
-            rr2 <- cbind(w[, 1:2], RS = rr)
-            return(rr2)
-          })
-
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-          riskscore[[i]] <- rs
-        }
-
-        return(riskscore)
-      } else {
-        miss.gene <- feature.a[which(!feature.a %in% feature.ab)]
-
-        print(paste0("Sorry, There are some genes in not matched,
-                     meaning that some of the genes appear in the model
-                     but do not exist inside certain cohorts."))
-      }
-    } else if (mode %in% "single") {
-      feature.ab <- feature.a
-      for (i in names(inputmatrix.list)) {
-        feature.ab <- intersect(feature.ab, colnames(inputmatrix.list[[i]]))
-      }
-
-      num.b <- length(feature.ab)
-
-      if (num.b == num.a) {
-        if (single_ml %in% "RSF") {
-          fit <- res.by.ML.Dev.Prog.Sig$ml.res[[1]]
-          print(i)
-
-          feature.ac <- fit[["xvar.names"]]
-
-
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, x)$predicted))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-          riskscore[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- rs
-
-          return(riskscore)
-        }
-
-
-        if (single_ml %in% "Enet") {
-          fit <- res.by.ML.Dev.Prog.Sig$ml.res[[1]]
-          feature.ac <- fit[["glmnet.fit"]][["beta"]]@Dimnames[[1]]
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "link", newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-
-          riskscore[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- rs
-
-          return(riskscore)
-        }
-
-        if (single_ml %in% "StepCox") {
-          fit <- res.by.ML.Dev.Prog.Sig$ml.res[[1]]
-          feature.ac <- names(fit[["coefficients"]])
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = predict(fit, type = "risk", newdata = x))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-          riskscore[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- rs
-
-          return(riskscore)
-        }
-
-
-        if (single_ml %in% "CoxBoost") {
-          fit <- res.by.ML.Dev.Prog.Sig$ml.res[[1]]
-          feature.ac <- fit[["xnames"]]
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, newdata = x[, -c(1, 2)], newtime = x[, 1], newstatus = x[, 2], type = "lp")))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-          riskscore[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- rs
-
-          return(riskscore)
-        }
-
-        if (single_ml %in% "plsRcox") {
-          fit <- res.by.ML.Dev.Prog.Sig$ml.res[[1]]
-          feature.ac <- colnames(fit[["dataX"]])
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "lp", newdata = x[, -c(1, 2)])))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-          riskscore[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- rs
-
-          return(riskscore)
-        }
-
-
-        if (single_ml %in% "superpc") {
-          fit <- res.by.ML.Dev.Prog.Sig$ml.res$SuperPC$fit
-          cv.fit <- res.by.ML.Dev.Prog.Sig$ml.res$SuperPC$cv.fit
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ab)]
-          })
-
-          rs <- lapply(val_dd_list, function(w) {
-            test <- list(x = t(w[, -c(1, 2)]), y = w$OS.time, censoring.status = w$OS, featurenames = colnames(w)[-c(1, 2)])
-            ff <- superpc.predict(fit, data, test, threshold = cv.fit$thresholds[which.max(cv.fit[["scor"]][1, ])], n.components = 1)
-            rr <- as.numeric(ff$v.pred)
-            rr2 <- cbind(w[, 1:2], RS = rr)
-            return(rr2)
-          })
-
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-          riskscore[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- rs
-
-          return(riskscore)
-        }
-
-
-        if (single_ml %in% "GBM") {
-          fit <- res.by.ML.Dev.Prog.Sig$ml.res$GBM$fit
-          best <- res.by.ML.Dev.Prog.Sig$ml.res$GBM$best
-          feature.ac <- fit[["var.names"]]
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, x, n.trees = best, type = "link")))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-          riskscore[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- rs
-
-          return(riskscore)
-        }
-
-        if (single_ml %in% "survivalsvm") {
-          fit <- res.by.ML.Dev.Prog.Sig$ml.res[[1]]
-          feature.ac <- fit[["var.names"]]
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, x)$predicted))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-
-          riskscore[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- rs
-
-          return(riskscore)
-        }
-
-        if (single_ml %in% "Ridge") {
-          fit <- res.by.ML.Dev.Prog.Sig$ml.res$Ridge$fit
-          cv.fit <- res.by.ML.Dev.Prog.Sig$ml.res$Ridge$cv.fit
-
-          feature.ac <- fit[["beta"]]@Dimnames[[1]]
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "link", newx = as.matrix(x[, -c(1, 2)]), s = cv.fit$lambda.min)))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-          riskscore[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- rs
-
-          return(riskscore)
-        }
-
-        if (single_ml %in% "Lasso") {
-          fit <- res.by.ML.Dev.Prog.Sig$ml.res$Lasso
-          feature.ac <- fit[["glmnet.fit"]][["beta"]]@Dimnames[[1]]
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "link", newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-          riskscore[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- rs
-
-          return(riskscore)
-        }
-      } else {
-        miss.gene <- feature.a[which(!feature.a %in% feature.ab)]
-
-        print(paste0("Sorry, There are some genes in not matched,
-                     meaning that some of the genes appear in the model
-                     but do not exist inside certain cohorts."))
-      }
-    } else if (mode == "double") {
-      feature.ab <- feature.a
-      for (i in names(inputmatrix.list)) {
-        feature.ab <- intersect(feature.ab, colnames(inputmatrix.list[[i]]))
-      }
-
-      num.b <- length(feature.ab)
-
-      if (num.b == num.a) {
-        if (double_ml2 == "RSF") {
-          fit <- res.by.ML.Dev.Prog.Sig$ml.res[[1]]
-          print(i)
-
-          feature.ac <- fit[["xvar.names"]]
-
-
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, x)$predicted))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-          riskscore[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- rs
-
-          return(riskscore)
-        }
-
-
-        if (double_ml2 == "Enet") {
-          fit <- res.by.ML.Dev.Prog.Sig$ml.res[[1]]
-          feature.ac <- fit[["glmnet.fit"]][["beta"]]@Dimnames[[1]]
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "link", newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-
-          riskscore[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- rs
-
-          return(riskscore)
-        }
-
-        if (double_ml2 == "StepCox") {
-          fit <- res.by.ML.Dev.Prog.Sig$ml.res[[1]]
-          feature.ac <- names(fit[["coefficients"]])
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = predict(fit, type = "risk", newdata = x))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-          riskscore[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- rs
-
-          return(riskscore)
-        }
-
-
-        if (double_ml2 == "CoxBoost") {
-          fit <- res.by.ML.Dev.Prog.Sig$ml.res[[1]]
-          feature.ac <- fit[["xnames"]]
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, newdata = x[, -c(1, 2)], newtime = x[, 1], newstatus = x[, 2], type = "lp")))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-          riskscore[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- rs
-
-          return(riskscore)
-        }
-
-        if (double_ml2 == "plsRcox") {
-          fit <- res.by.ML.Dev.Prog.Sig$ml.res[[1]]
-          feature.ac <- colnames(fit[["dataX"]])
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "lp", newdata = x[, -c(1, 2)])))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-          riskscore[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- rs
-
-          return(riskscore)
-        }
-
-
-        if (double_ml2 == "superpc") {
-          fit <- res.by.ML.Dev.Prog.Sig$ml.res$SuperPC$fit
-          cv.fit <- res.by.ML.Dev.Prog.Sig$ml.res$SuperPC$cv.fit
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ab)]
-          })
-
-          rs <- lapply(val_dd_list, function(w) {
-            test <- list(x = t(w[, -c(1, 2)]), y = w$OS.time, censoring.status = w$OS, featurenames = colnames(w)[-c(1, 2)])
-            ff <- superpc.predict(fit, data, test, threshold = cv.fit$thresholds[which.max(cv.fit[["scor"]][1, ])], n.components = 1)
-            rr <- as.numeric(ff$v.pred)
-            rr2 <- cbind(w[, 1:2], RS = rr)
-            return(rr2)
-          })
-
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-          riskscore[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- rs
-
-          return(riskscore)
-        }
-
-
-        if (double_ml2 == "GBM") {
-          fit <- res.by.ML.Dev.Prog.Sig$ml.res$GBM$fit
-          best <- res.by.ML.Dev.Prog.Sig$ml.res$GBM$best
-          feature.ac <- fit[["var.names"]]
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, x, n.trees = best, type = "link")))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-          riskscore[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- rs
-
-          return(riskscore)
-        }
-
-        if (double_ml2 == "survivalsvm") {
-          fit <- res.by.ML.Dev.Prog.Sig$ml.res[[1]]
-          feature.ac <- fit[["var.names"]]
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, x)$predicted))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-
-          riskscore[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- rs
-
-          return(riskscore)
-        }
-
-        if (double_ml2 == "Ridge") {
-          fit <- res.by.ML.Dev.Prog.Sig$ml.res$Ridge$fit
-          cv.fit <- res.by.ML.Dev.Prog.Sig$ml.res$Ridge$cv.fit
-
-          feature.ac <- fit[["beta"]]@Dimnames[[1]]
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "link", newx = as.matrix(x[, -c(1, 2)]), s = cv.fit$lambda.min)))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-
-          riskscore[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- rs
-
-          return(riskscore)
-        }
-
-        if (double_ml2 == "Lasso") {
-          fit <- res.by.ML.Dev.Prog.Sig$ml.res$Lasso
-          feature.ac <- fit[["glmnet.fit"]][["beta"]]@Dimnames[[1]]
-          val_dd_list2 <- lapply(val_dd_list, function(x) {
-            x[, c("OS.time", "OS", feature.ac)]
-          })
-
-
-
-          rs <- lapply(val_dd_list2, function(x) {
-            cbind(x[, 1:2], RS = as.numeric(predict(fit, type = "link", newx = as.matrix(x[, -c(1, 2)]), s = fit$lambda.min)))
-          })
-          rs <- returnIDtoRS(rs.table.list = rs, rawtableID = inputmatrix.list)
-          riskscore[[names(res.by.ML.Dev.Prog.Sig$ml.res)]] <- rs
-
-          return(riskscore)
-        }
-      } else {
-        miss.gene <- feature.a[which(!feature.a %in% feature.ab)]
-
-        print(paste0("Sorry, There are some genes in not matched,
-                     meaning that some of the genes appear in the model
-                     but do not exist inside certain cohorts."))
-      }
-    }
-  } else {
-    print("Please refer to the sample data and process to improve the relevant parameters and preprocessing files")
+    riskscore[[model_name]] <- return_id_to_rs(rs, inputmatrix.list)
   }
+
+  riskscore
 }

@@ -27,7 +27,7 @@ cached_compute <- function(key, compute_fn) {
 }
 
 #' Clear the ML cache
-#' @export
+#' @keywords internal
 clear_ml_cache <- function() {
   rm(list = ls(envir = ml_cache), envir = ml_cache)
   message("ML cache cleared")

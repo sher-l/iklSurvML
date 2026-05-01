@@ -8,27 +8,43 @@
 #'
 #' @examples
 cal.auc.category.model <- function(res.by.ML.Dev.Pred.Category.Sig, ### 函数计算结果
-                                   cohort.for.cal # 队列要求第一列为ID,第二列为分类变量Var, 值为Y或者N, 从第三列开始为基因，表达矩阵经过了log2(x+1)处理
+	                                   cohort.for.cal # 队列要求第一列为ID,第二列为分类变量Var, 值为Y或者N, 从第三列开始为基因，表达矩阵经过了log2(x+1)处理
 ) {
   sig <- res.by.ML.Dev.Pred.Category.Sig$sig.gene
+  positive_class <- res.by.ML.Dev.Pred.Category.Sig$positive_class
+  if (is.null(positive_class)) {
+    positive_class <- "Y"
+  }
+  class_levels <- category_class_levels(positive_class)
 
   rownames(cohort.for.cal) <- cohort.for.cal$ID
-  colnames(cohort.for.cal) <- gsub("-", ".", colnames(cohort.for.cal))
-  sig <- gsub("-", ".", sig)
+  cohort.for.cal <- normalize_ml_data_columns(cohort.for.cal, "cohort.for.cal")
+  sig <- normalize_ml_feature_names(sig)
 
 
   if (all(is.element(sig, colnames(cohort.for.cal))) & identical(colnames(cohort.for.cal)[1:2], c("ID", "Var"))) {
-    validation <- cohort.for.cal[, colnames(cohort.for.cal) %in% c("Var", sig)]
-    validation$Var <- factor(validation$Var, levels = c("N", "Y"))
+    recipe <- res.by.ML.Dev.Pred.Category.Sig$Preprocess.recipe
+    if (!is.null(recipe)) {
+      validation <- apply_category_preprocess_recipe(
+        cohort.for.cal,
+        recipe = recipe,
+        label = "cohort.for.cal",
+        common_feature = c("ID", "Var", sig)
+      )
+      validation <- validation[, colnames(validation) %in% c("Var", sig)]
+    } else {
+      validation <- cohort.for.cal[, colnames(cohort.for.cal) %in% c("Var", sig)]
+      validation$Var <- factor(validation$Var, levels = class_levels)
+    }
 
     ls_model <- res.by.ML.Dev.Pred.Category.Sig$model
     auc <- lapply(ls_model, function(model.tune) {
-      if (class(model.tune) == "predictor") {
+      if (inherits(model.tune, "predictor")) {
         pData <- data.frame(class = validation$Var, sample = rownames(validation), row.names = rownames(validation))
         phenoData <- Biobase::AnnotatedDataFrame(data = pData)
         Sig.Exp <- t(validation[, -1])
         Sig.Exp.test <- Biobase::ExpressionSet(assayData = as.matrix(Sig.Exp), phenoData = phenoData)
-        prediction <- predict(model.tune, Sig.Exp.test, "N", ngenes = nrow(Sig.Exp), dist = "cor")
+        prediction <- predict(model.tune, Sig.Exp.test, positive_class, ngenes = nrow(Sig.Exp), dist = "cor")
         roc <- pROC::roc(
           response = prediction@prediction[, "class_membership"],
           predictor = as.numeric(prediction@prediction[, "z"])
@@ -38,8 +54,11 @@ cal.auc.category.model <- function(res.by.ML.Dev.Pred.Category.Sig, ### 函数�
       } else {
         prob <- predict(model.tune, validation[, -1], type = "prob")
         pre <- predict(model.tune, validation[, -1])
-        test_set <- data.frame(obs = validation$Var, N = prob[, "N"], Y = prob[, "Y"], pred = pre)
-        auc <- caret::twoClassSummary(test_set, lev = levels(test_set$obs))
+        test_set <- data.frame(obs = validation$Var, pred = pre, check.names = FALSE)
+        for (cls in class_levels) {
+          test_set[[cls]] <- prob[, cls]
+        }
+        auc <- caret::twoClassSummary(test_set, lev = class_levels)
       }
 
       return(auc)

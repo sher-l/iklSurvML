@@ -99,20 +99,33 @@ signature_score <- function(res.by.ML.Dev.Prog.Sig, # ML.Dev.Prog.Sig, 函数计
     } else if (estima_method %in% c("pca", "integration")) {
       ### For the PCA method, it is necessary to remove genes with constant expression values across all samples.
       constant_gene <- which(apply(test.matrix, 1, function(x) length(unique(x)) == 1))
-      constant_gene_names <- rownames(test.matrix)[constant_columns]
-      print(paste0("Some genes have constant values. For the PCA or integration method, it is necessary to remove genes with constant expression values across all samples."))
+      if (length(constant_gene) > 0L) {
+        constant_gene_names <- rownames(test.matrix)[constant_gene]
+        print(paste0(
+          "Some genes have constant values. For the PCA or integration method, ",
+          "it is necessary to remove genes with constant expression values across all samples: ",
+          paste(constant_gene_names, collapse = ", ")
+        ))
 
-      test.matrix <- test.matrix[-constant_gene, ]
+        test.matrix <- test.matrix[-constant_gene, , drop = FALSE]
+      }
+
+      if (nrow(test.matrix) == 0L) {
+        stop("No non-constant genes remain for PCA/integration signature scoring", call. = FALSE)
+      }
+      if (nrow(test.matrix) < 2L) {
+        stop("At least two non-constant genes are required for PCA/integration signature scoring", call. = FALSE)
+      }
 
       sig_tme <- IOBR::calculate_sig_score(
         pdata = NULL,
         eset = test.matrix,
-        signature = signature_collection,
+        signature = signature,
         method = estima_method,
         mini_gene_count = 2
       )
 
-      sig_tme <- t(column_to_rownames(sig_tme, var = "ID"))
+      sig_tme <- t(tibble::column_to_rownames(sig_tme, var = "ID"))
       resultList <- list("sig_tme" = sig_tme)
     }
     resultList_1 <- list(resultList)
@@ -167,7 +180,7 @@ signature_score <- function(res.by.ML.Dev.Prog.Sig, # ML.Dev.Prog.Sig, 函数计
       cor.result <- list("correlation_result" = sig_tme_cor)
       names(cor.result) <- names(inputmatrix.list)[i]
       cor.result.list <- append(cor.result.list, cor.result)
-      print(paste0("correlation.test", " in ", names(inputmatrix.list)[i], ": ", names(res.by.ML.Dev.Prog.Sig$riskscore[j]), " Processed Successfu"))
+      print(paste0("correlation.test", " in ", names(inputmatrix.list)[i], " Processed Successfully"))
     }
 
     print(paste0(names(inputmatrix.list)[i], " Processed Successfully"))

@@ -2,6 +2,7 @@
 % Please edit documentation in R/cal_RS_ml_res.R
 \name{cal_RS_ml_res}
 \alias{cal_RS_ml_res}
+\alias{cal_rs_ml_res}
 \title{Calculate risk scores of Machine Learning Models in all data}
 \usage{
 cal_RS_ml_res(
@@ -15,6 +16,8 @@ cal_RS_ml_res(
   alpha_for_Enet = NULL,
   direction_for_stepcox = NULL
 )
+
+cal_rs_ml_res(...)
 }
 \arguments{
 \item{res.by.ML.Dev.Prog.Sig}{The results of function ML.Dev.Prog.Sig}
@@ -34,6 +37,8 @@ cal_RS_ml_res(
 \item{alpha_for_Enet}{One of the values from 0.1 to 0.9. c(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9). There are some conditions you could not set this parameter. [1] The mode is 'all'. [2] The mode is 'single' or 'double', but the 'Enet' is not included in the algorithms you choose.}
 
 \item{direction_for_stepcox}{The parameter for the StepCox. One  from "both", "backward", "forward". There are some conditions you could not set this parameter. [1] The mode is 'all'. [2] The mode is 'single' or 'double', but the 'StepCox' is not included in the algorithms you choose.}
+
+\item{...}{Arguments passed to \code{cal_RS_ml_res}.}
 }
 \value{
 A list of the risk score calculated by the predictive model in each data in the data of the input matrix list.

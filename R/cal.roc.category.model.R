@@ -8,18 +8,35 @@
 #'
 #' @examples
 cal.roc.category.model <- function(res.by.ML.Dev.Pred.Category.Sig, ### 函数计算结果
-                                   cohort.for.cal # 队列要求第一列为ID,第二列为分类变量Var, 值为Y或者N, 从第三列开始为基因，表达矩阵经过了log2(x+1)处理
+	                                   cohort.for.cal # 队列要求第一列为ID,第二列为分类变量Var, 值为Y或者N, 从第三列开始为基因，表达矩阵经过了log2(x+1)处理
 ) {
   sig <- res.by.ML.Dev.Pred.Category.Sig$sig.gene
+  positive_class <- res.by.ML.Dev.Pred.Category.Sig$positive_class
+  if (is.null(positive_class)) {
+    positive_class <- "Y"
+  }
+  class_levels <- category_class_levels(positive_class)
+  negative_class <- setdiff(c("Y", "N"), positive_class)
 
   rownames(cohort.for.cal) <- cohort.for.cal$ID
-  colnames(cohort.for.cal) <- gsub("-", ".", colnames(cohort.for.cal))
-  sig <- gsub("-", ".", sig)
+  cohort.for.cal <- normalize_ml_data_columns(cohort.for.cal, "cohort.for.cal")
+  sig <- normalize_ml_feature_names(sig)
 
 
   if (all(is.element(sig, colnames(cohort.for.cal))) & identical(colnames(cohort.for.cal)[1:2], c("ID", "Var"))) {
-    validation <- cohort.for.cal[, colnames(cohort.for.cal) %in% c("Var", sig)]
-    validation$Var <- factor(validation$Var, levels = c("N", "Y"))
+    recipe <- res.by.ML.Dev.Pred.Category.Sig$Preprocess.recipe
+    if (!is.null(recipe)) {
+      validation <- apply_category_preprocess_recipe(
+        cohort.for.cal,
+        recipe = recipe,
+        label = "cohort.for.cal",
+        common_feature = c("ID", "Var", sig)
+      )
+      validation <- validation[, colnames(validation) %in% c("Var", sig)]
+    } else {
+      validation <- cohort.for.cal[, colnames(cohort.for.cal) %in% c("Var", sig)]
+      validation$Var <- factor(validation$Var, levels = class_levels)
+    }
 
     ls_model <- res.by.ML.Dev.Pred.Category.Sig$model
     models <- names(ls_model)
@@ -27,11 +44,14 @@ cal.roc.category.model <- function(res.by.ML.Dev.Pred.Category.Sig, ### 函数�
       if (!models[i] == "cancerclass") {
         prob <- predict(ls_model[[models[i]]], validation[, -1], type = "prob") #
         pre <- predict(ls_model[[models[i]]], validation[, -1]) #
-        test_set <- data.frame(obs = validation$Var, N = prob[, "N"], Y = prob[, "Y"], pred = pre)
+        test_set <- data.frame(obs = validation$Var, pred = pre, check.names = FALSE)
+        for (cls in class_levels) {
+          test_set[[cls]] <- prob[, cls]
+        }
         roc <- ROCit::rocit(
-          score = test_set$N,
+          score = test_set[[positive_class]],
           class = test_set$obs,
-          negref = "Y"
+          negref = negative_class
         )
       } else {
         pData <- data.frame(class = validation$Var, sample = rownames(validation), row.names = rownames(validation))
@@ -39,7 +59,7 @@ cal.roc.category.model <- function(res.by.ML.Dev.Pred.Category.Sig, ### 函数�
         Sig.Exp <- t(validation[, -1])
         Sig.Exp.test <- Biobase::ExpressionSet(assayData = as.matrix(Sig.Exp), phenoData = phenoData)
 
-        prediction <- predict(ls_model[[models[i]]], Sig.Exp.test, "N", ngenes = nrow(Sig.Exp), dist = "cor")
+        prediction <- predict(ls_model[[models[i]]], Sig.Exp.test, positive_class, ngenes = nrow(Sig.Exp), dist = "cor")
         roc <- pROC::roc(
           response = prediction@prediction[, "class_membership"],
           predictor = as.numeric(prediction@prediction[, "z"])

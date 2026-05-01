@@ -15,11 +15,17 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
                                  cores_for_parallel = 12) {
   cat("Data processing")
 
-  list_train_vali_Data <- lapply(list_train_vali_Data, function(x) {
+  data_names <- names(list_train_vali_Data)
+  if (is.null(data_names)) {
+    data_names <- as.character(seq_along(list_train_vali_Data))
+  }
+  list_train_vali_Data <- lapply(data_names, function(nm) {
+    x <- normalize_ml_data_columns(list_train_vali_Data[[nm]], paste0("Dataset '", nm, "'"))
     x[, -c(1:2)] <- apply(x[, -c(1:2)], 2, as.numeric)
     rownames(x) <- x$ID
     return(x)
   })
+  names(list_train_vali_Data) <- data_names
 
 
   list_train_vali_Data <- lapply(list_train_vali_Data, function(x) {
@@ -82,6 +88,35 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
 
   auc.list.immunotherapy <- list()
 
+  calculate_signature_auc <- function(signature_name,
+                                      signature_genes,
+                                      score_type,
+                                      negref = "N",
+                                      single_gene = NULL,
+                                      cohort_list = list_train_vali_Data) {
+    auc <- lapply(names(cohort_list), function(nm) {
+      cohort <- cohort_list[[nm]]
+      score <- calculate_signature_score_by_genes(
+        cohort,
+        signature_genes = signature_genes,
+        signature_name = signature_name,
+        dataset_name = nm,
+        score_type = score_type,
+        single_gene = single_gene
+      )
+      roc <- ROCit::rocit(
+        score = score,
+        class = cohort$Var,
+        negref = negref
+      )
+      roc$AUC
+    }) %>%
+      do.call(rbind, .) %>%
+      `rownames<-`(names(cohort_list)) %>%
+      `colnames<-`("AUC")
+    auc
+  }
+
 
   ##### =============================1 immunotherapy response signatures==============================================#####
 
@@ -98,24 +133,12 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
 
   sig <- gsub("-", ".", sig)
 
-
-
-
-  AUC_INFG.Sig <- lapply(list_train_vali_Data, function(g) {
-    new <- g[, colnames(g) %in% c("Var", sig)]
-
-
-    roc <- ROCit::rocit(
-      score = rowMeans(new[, 2:7]),
-      class = new$Var,
-      negref = "N"
-    )
-    auc <- roc$AUC
-    return(auc)
-  }) %>%
-    do.call(rbind, .) %>%
-    `rownames<-`(names(list_train_vali_Data)) %>%
-    `colnames<-`("AUC")
+  AUC_INFG.Sig <- calculate_signature_auc(
+    signature_name = "IFNG.Sig",
+    signature_genes = sig,
+    score_type = "mean",
+    negref = "N"
+  )
 
   AUC_INFG.Sig
 
@@ -134,22 +157,12 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
   sig
   sig <- gsub("-", ".", sig)
 
-
-  AUC_T.cell.inflamed.Sig <- lapply(list_train_vali_Data, function(g) {
-    new <- g[, colnames(g) %in% c("Var", sig)]
-
-
-    roc <- ROCit::rocit(
-      score = rowMeans(new[, 2:7]),
-      class = new$Var,
-      negref = "N"
-    )
-    auc <- roc$AUC
-    return(auc)
-  }) %>%
-    do.call(rbind, .) %>%
-    `rownames<-`(names(list_train_vali_Data)) %>%
-    `colnames<-`("AUC")
+  AUC_T.cell.inflamed.Sig <- calculate_signature_auc(
+    signature_name = "T.cell.inflamed.Sig",
+    signature_genes = sig,
+    score_type = "mean",
+    negref = "N"
+  )
 
   AUC_T.cell.inflamed.Sig
 
@@ -167,21 +180,13 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
   sig
   sig <- gsub("-", ".", sig)
 
-
-  AUC_PDL1.Sig <- lapply(list_train_vali_Data, function(g) {
-    new <- g[, colnames(g) %in% c("Var", sig)]
-
-    roc <- ROCit::rocit(
-      score = new$PDCD1,
-      class = new$Var,
-      negref = "N"
-    )
-    auc <- roc$AUC
-    return(auc)
-  }) %>%
-    do.call(rbind, .) %>%
-    `rownames<-`(names(list_train_vali_Data)) %>%
-    `colnames<-`("AUC")
+  AUC_PDL1.Sig <- calculate_signature_auc(
+    signature_name = "PDL1.Sig",
+    signature_genes = "PDCD1",
+    score_type = "single_gene",
+    single_gene = "PDCD1",
+    negref = "N"
+  )
 
   AUC_PDL1.Sig
   auc.list.immunotherapy[["PDL1.Sig"]] <- AUC_PDL1.Sig
@@ -430,8 +435,9 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
   # Reference: Jerby-Arnon L, Shah P, Cuoco MS, Rodman C, Su M-J, Melms JC, et al. A Cancer Cell Program Promotes T Cell Exclusion and Resistance to Checkpoint Blockade. Cell.2018;175:984-997.e24.
   # Available from: https://linkinghub.elsevier.com/retrieve/pii/S0092867418311784
 
-  # source("/export3/zhangw/Project_Cross/Project_Mime/data/sig/IMPRES/ImmRes_source.R") ## 'ImmRes_OE.R' was downloaded from https://github.com/livnatje/ImmuneResistance
-  source(system.file("extdata", "ImmRes_source.R", package = "iklSurvML"))
+  # Load runtime IMPRES helper scripts shipped under inst/extdata without
+  # attaching helper packages or sourced objects to the caller's search path.
+  impres_env <- load_impres_extdata_helpers()
 
   sig <- ls_sig[["TcellExc.Sig"]]
   sig <- gsub("-", ".", sig)
@@ -441,7 +447,7 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
 
   prd <- function(df) {
     r <- list(tpm = t(df[, -1]), genes = colnames(df[, -1]))
-    OE <- get("get.OE.bulk", mode = "function")(
+    OE <- get("get.OE.bulk", envir = impres_env, mode = "function")(
       r = r,
       gene.sign = gene.sign
     )

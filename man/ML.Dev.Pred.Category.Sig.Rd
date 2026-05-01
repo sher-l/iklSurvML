@@ -10,7 +10,9 @@ ML.Dev.Pred.Category.Sig(
   candidate_genes = NULL,
   methods = NULL,
   seed = 5201314,
-  cores_for_parallel = 12
+  cores_for_parallel = 12,
+  positive_class = "Y",
+  feature_alignment = c("strict", "intersection")
 )
 }
 \arguments{
@@ -25,6 +27,10 @@ ML.Dev.Pred.Category.Sig(
 \item{seed}{The seed you can set as any positive number, for example, 5201314.}
 
 \item{cores_for_parallel}{The cores you can choose for parallel operation. The default is 12.The bigger the better if the configuration allows it.}
+
+\item{positive_class}{The class treated as the positive/event class for ROC/AUC. Defaults to \"Y\".}
+
+\item{feature_alignment}{How candidate genes are aligned across cohorts. \"strict\" requires all candidate genes to be present in every cohort; \"intersection\" uses shared genes and warns about dropped features.}
 }
 \value{
 A list containing the predictive model, the AUC, the ROC, and the candidate variables, all of which are developed by each single algorithm.

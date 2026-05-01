@@ -18,11 +18,11 @@ ML.Corefeature.Prog.Screen(
 
 \item{candidate_genes}{The input genes, that you want to screen out from, for identifying the core features.}
 
-\item{mode}{We provide three modes including 'all', 'single', and 'all_without_SVM'. The 'all' mode means using all eight methods for selecting. The 'single' mode means using only one method for running. Since SVM takes so much time, we're singling him out. The 'all_without_SVM' mode means the other seven methods used for selecting.}
+\item{mode}{We provide three modes including 'all', 'single', and 'all_without_SVM'. The 'all' mode means using all seven methods for selecting. The 'single' mode means using only one method for running. Since SVM takes so much time, we're singling him out. The 'all_without_SVM' mode means the other six methods used for selecting.}
 
 \item{seed}{The seed. You can set it as any number. For example, 5201314.}
 
-\item{single_ml}{The one method from the eight methods including "RSF", "Enet", "Boruta", "Xgboost", "SVM-REF", "Lasso", "CoxBoost', 'StepCox'.}
+\item{single_ml}{The one method from the seven methods including "RSF", "Enet", "Xgboost", "SVM-REF", "Lasso", "CoxBoost", "StepCox".}
 
 \item{nodesize}{The node size parameter for the RSF method. The default is 5. You can try another positive integer. For example, 10,15,20, etc.}
 }
@@ -30,5 +30,5 @@ ML.Corefeature.Prog.Screen(
 A data frame including the methods and the core genes screened by the corresponding algorithm.
 }
 \description{
-A function can be used for screening out the core features from the given candidate genes with eight machine learning algorithms.
+A function can be used for screening out the core features from the given candidate genes with seven machine learning algorithms.
 }
