@@ -18,6 +18,38 @@ test_that("category method dependency map includes transitive cancerclass runtim
   expect_true(all(c("cancerclass", "Biobase", "pROC") %in% deps$cancerclass))
 })
 
+test_that("cancerclass ROC helpers evaluate observed validation labels", {
+  skip_if_not_installed("pROC")
+
+  observed <- factor(c("Y", "N", "Y", "N"), levels = c("Y", "N"))
+  prediction <- data.frame(
+    class_membership = c("N", "Y", "N", "Y"),
+    z = c(0.9, 0.1, 0.8, 0.2)
+  )
+
+  roc <- iklSurvML:::category_cancerclass_roc(
+    observed = observed,
+    prediction = prediction,
+    positive_class = "Y"
+  )
+
+  expect_equal(as.character(roc$response), as.character(observed))
+  expect_equal(roc$levels, c("N", "Y"))
+})
+
+test_that("category CV folds are capped by the smallest class", {
+  y <- factor(c("Y", "Y", "N", "N", "N"), levels = c("Y", "N"))
+
+  expect_equal(
+    iklSurvML:::resolve_category_cv_folds(y, requested_folds = 5L),
+    2L
+  )
+  expect_error(
+    iklSurvML:::resolve_category_cv_folds(c("Y", "N", "N"), requested_folds = 5L),
+    "at least 2 samples per class"
+  )
+})
+
 test_that("requesting an unavailable optional category engine fails clearly", {
   skip_if(requireNamespace("cancerclass", quietly = TRUE), "cancerclass is installed")
 

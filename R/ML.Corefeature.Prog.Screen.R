@@ -531,6 +531,11 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
 
     est_dd <- as.data.frame(InputMatrix)[, common_feature[-1]]
     pre_var <- common_feature[-c(1:3)]
+    survival_cv_folds <- resolve_survival_cv_folds(
+      est_dd$OS,
+      requested_folds = 10L,
+      context = "ML.Corefeature.Prog.Screen cross-validation"
+    )
     selected.feature <- data.frame()
 
 
@@ -539,8 +544,8 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
       message("--- 1.Repeated lasso ---")
       x1 <- as.matrix(est_dd[, pre_var])
       x2 <- as.matrix(Surv(est_dd$OS.time, est_dd$OS))
-      print("1000 time lasso penalty")
-      # 1000 time lasso penalty
+      message(paste0(iter.times, " time lasso penalty"))
+      # repeated lasso penalty search
       lasso_fea_list <- list()
       list.of.seed <- 1:iter.times
 
@@ -551,7 +556,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
         cvfit <- glmnet::cv.glmnet(
           x = x1,
           y = x2,
-          nfolds = 10, # 10-fold????????lambda
+          nfolds = survival_cv_folds, # capped K-fold cross-validation
           alpha = 1, # alpha = 1 ??? lasso
           family = "cox", # ??cox??
           maxit = 1000
@@ -618,7 +623,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
           cvfit <- glmnet::cv.glmnet(
             x = x1,
             y = x2,
-            nfolds = 10, # 10-fold????????lambda
+            nfolds = survival_cv_folds, # capped K-fold cross-validation
             alpha = alpha,
             family = "cox", # ??cox??
             maxit = 1000
@@ -639,7 +644,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
         genes <- names(genes[genes > freq.cutoff]) # ??????????50?????????lasso?????
 
         result <- data.frame(
-          method = c(rep(paste0("Enet", "[?=", alpha, "]"), length(genes))),
+          method = c(rep(paste0("Enet", "[alpha=", alpha, "]"), length(genes))),
           selected.fea = genes
         )
 
@@ -703,8 +708,8 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
         message("--- 1.Repeated lasso ---")
         x1 <- as.matrix(est_dd[, pre_var])
         x2 <- as.matrix(Surv(est_dd$OS.time, est_dd$OS))
-        print("1000 time lasso penalty")
-        # 1000 time lasso penalty
+        message(paste0(iter.times, " time lasso penalty"))
+        # repeated lasso penalty search
         lasso_fea_list <- list()
         list.of.seed <- 1:iter.times
 
@@ -715,7 +720,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
           cvfit <- glmnet::cv.glmnet(
             x = x1,
             y = x2,
-            nfolds = 10, # 10-fold????????lambda
+            nfolds = survival_cv_folds, # capped K-fold cross-validation
             alpha = 1, # alpha = 1 ??? lasso
             family = "cox", # ??cox??
             maxit = 1000
@@ -782,7 +787,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
             cvfit <- glmnet::cv.glmnet(
               x = x1,
               y = x2,
-              nfolds = 10, # 10-fold????????lambda
+              nfolds = survival_cv_folds, # capped K-fold cross-validation
               alpha = alpha,
               family = "cox", # ??cox??
               maxit = 1000
@@ -803,7 +808,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
           genes <- names(genes[genes > freq.cutoff]) # ??????????50?????????lasso?????
 
           result <- data.frame(
-            method = c(rep(paste0("Enet", "[?=", alpha, "]"), length(genes))),
+            method = c(rep(paste0("Enet", "[alpha=", alpha, "]"), length(genes))),
             selected.fea = genes
           )
 
@@ -876,8 +881,8 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
       message("--- 1.Repeated lasso ---")
       x1 <- as.matrix(est_dd[, pre_var])
       x2 <- as.matrix(Surv(est_dd$OS.time, est_dd$OS))
-      print("1000 time lasso penalty")
-      # 1000 time lasso penalty
+      message(paste0(iter.times, " time lasso penalty"))
+      # repeated lasso penalty search
       lasso_fea_list <- list()
       list.of.seed <- 1:iter.times
 
@@ -888,7 +893,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
         cvfit <- glmnet::cv.glmnet(
           x = x1,
           y = x2,
-          nfolds = 10, # 10-fold????????lambda
+          nfolds = survival_cv_folds, # capped K-fold cross-validation
           alpha = 1, # alpha = 1 ??? lasso
           family = "cox", # ??cox??
           maxit = 1000
@@ -955,7 +960,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
           cvfit <- glmnet::cv.glmnet(
             x = x1,
             y = x2,
-            nfolds = 10, # 10-fold????????lambda
+            nfolds = survival_cv_folds, # capped K-fold cross-validation
             alpha = alpha,
             family = "cox", # ??cox??
             maxit = 1000
@@ -976,7 +981,7 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
         genes <- names(genes[genes > freq.cutoff]) # ??????????50?????????lasso?????
 
         result <- data.frame(
-          method = c(rep(paste0("Enet", "[?=", alpha, "]"), length(genes))),
+          method = c(rep(paste0("Enet", "[alpha=", alpha, "]"), length(genes))),
           selected.fea = genes
         )
 

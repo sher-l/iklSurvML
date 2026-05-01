@@ -72,7 +72,16 @@ train_enet <- function(est_dd, rid = NULL, alpha = 0.5, seed = 5201314) {
   x1 <- as.matrix(est_dd[, rid])
   x2 <- as.matrix(survival::Surv(est_dd$OS.time, est_dd$OS))
   set.seed(seed)
-  fit <- glmnet::cv.glmnet(x1, x2, family = "cox", alpha = alpha, nfolds = 10)
+  fit <- glmnet::cv.glmnet(
+    x1, x2,
+    family = "cox",
+    alpha = alpha,
+    nfolds = resolve_survival_cv_folds(
+      est_dd$OS,
+      requested_folds = 10L,
+      context = "Enet Cox cross-validation"
+    )
+  )
   attr(fit, "iklsurvml_features") <- rid
   return(fit)
 }
@@ -111,7 +120,11 @@ train_lasso <- function(est_dd, rid = NULL, seed = 5201314) {
   set.seed(seed)
   fit <- glmnet::cv.glmnet(
     x1, x2,
-    nfolds = 10,
+    nfolds = resolve_survival_cv_folds(
+      est_dd$OS,
+      requested_folds = 10L,
+      context = "Lasso Cox cross-validation"
+    ),
     family = "cox",
     alpha = 1
   )
@@ -164,7 +177,16 @@ train_ridge <- function(est_dd, rid = NULL, seed = 5201314) {
   set.seed(seed)
   # Ridge regression: alpha = 0
   fit <- glmnet::glmnet(x1, x2, family = "cox", alpha = 0, lambda = NULL)
-  cv_fit <- glmnet::cv.glmnet(x1, x2, nfolds = 10, family = "cox", alpha = 0)
+  cv_fit <- glmnet::cv.glmnet(
+    x1, x2,
+    nfolds = resolve_survival_cv_folds(
+      est_dd$OS,
+      requested_folds = 10L,
+      context = "Ridge Cox cross-validation"
+    ),
+    family = "cox",
+    alpha = 0
+  )
   attr(fit, "iklsurvml_features") <- rid
   out <- list(fit = fit, cv.fit = cv_fit)
   attr(out, "iklsurvml_features") <- rid
@@ -276,7 +298,11 @@ train_coxboost <- function(est_dd, seed = 5201314) {
     est_dd[, "OS"],
     as.matrix(est_dd[, -c(1, 2)]),
     maxstepno = 500,
-    K = 10,
+    K = resolve_survival_cv_folds(
+      est_dd$OS,
+      requested_folds = 10L,
+      context = "CoxBoost cross-validation"
+    ),
     type = "verweij",
     penalty = pen$penalty
   )
@@ -544,7 +570,11 @@ train_superpc <- function(est_dd, seed = 5201314) {
       cv_fit <- superpc::superpc.cv(
         fit, data,
         n.threshold = 20,
-        n.fold = 10,
+        n.fold = resolve_survival_cv_folds(
+          est_dd$OS,
+          requested_folds = 10L,
+          context = "SuperPC cross-validation"
+        ),
         n.components = 3,
         min.features = 2,
         max.features = nrow(data$x),

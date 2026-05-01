@@ -87,6 +87,21 @@ run_all_algorithms_128_parallel <- function(est_dd, train_data, val_dd_list,
   result <- data.frame()
   ml.res <- list()
   riskscore <- list()
+  model_skips <- character()
+  record_selector_skip <- function(selector, selector_param = NULL) {
+    reason <- "first-stage selector returned fewer than 2 variables"
+    model_skips <<- c(
+      model_skips,
+      format_model_skip_records(
+        all_mode_selector_model_names(
+          selector,
+          selector_param = selector_param,
+          model_grid = model_grid
+        ),
+        reason
+      )
+    )
+  }
 
   # ============================================
   # PHASE 1: Feature selectors (MUST be sequential - shared state)
@@ -154,7 +169,6 @@ run_all_algorithms_128_parallel <- function(est_dd, train_data, val_dd_list,
     }
     })
   }
-
   # StepCox (3) - use cached fits
   for (dir in c("both", "backward", "forward")) {
     local({
@@ -284,6 +298,8 @@ run_all_algorithms_128_parallel <- function(est_dd, train_data, val_dd_list,
       }
       })
     }
+  } else {
+    record_selector_skip("RSF")
   }
 
   # ---- Phase 2C: StepCox combinations (117-grid includes forward as first-stage selector) ----
@@ -364,6 +380,8 @@ run_all_algorithms_128_parallel <- function(est_dd, train_data, val_dd_list,
         rs <- calculate_risk_scores(val_sc, function(x) predict_survivalsvm(fit, x))
         list(name = paste0("StepCox[", d, "] + survival-SVM"), rs = rs, fit = fit)
       }
+      } else {
+        record_selector_skip("StepCox", selector_param = dir)
     }
     })
   }
@@ -435,6 +453,7 @@ run_all_algorithms_128_parallel <- function(est_dd, train_data, val_dd_list,
       list(name = "CoxBoost + survival-SVM", rs = rs, fit = fit)
     }
   } else {
+    record_selector_skip("CoxBoost")
     warning("The number of selected candidate genes by CoxBoost is less than 2")
   }
 
@@ -500,6 +519,8 @@ run_all_algorithms_128_parallel <- function(est_dd, train_data, val_dd_list,
       rs <- calculate_risk_scores(val_lasso, function(x) predict_survivalsvm(fit, x))
       list(name = "Lasso + survival-SVM", rs = rs, fit = fit)
     }
+  } else {
+    record_selector_skip("Lasso")
   }
 
   # ============================================
@@ -616,12 +637,16 @@ run_all_algorithms_128_parallel <- function(est_dd, train_data, val_dd_list,
     context = "Parallel all-mode"
   )
 
-  return(list(
+  out <- list(
     Cindex.res = result,
     ml.res = ml.res,
     riskscore = riskscore,
     Sig.genes = pre_var
-  ))
+  )
+  if (length(model_skips) > 0L) {
+    out$Model.skips <- unique(model_skips)
+  }
+  return(out)
 }
 
 #' Stop when parallel workers report errors

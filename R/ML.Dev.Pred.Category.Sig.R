@@ -1,27 +1,3 @@
-#' Developing the optimal predictive model for the dichotomous variables with machine learning algorithms
-#' 
-#' A function can be used to develop the predictive model for dichotomous variables with seven machine learning algorithms.
-#' 
-#' @param train_data The training data with the 'ID' and 'Var' as the first two columns. Starting in the third column are the variables used to construct the model. 'Var' is the target predictor variable for constructing the model. 'Var' contains only Y or N.
-#' @param list_train_vali_Data A list containing the training data and the other validation data. All the validation data have the same data form as the training data.
-#' @param candidate_genes The candidate variables used for constructing the predictive model.
-#' @param methods There are seven algorithms for developing the predictive model including 'nb', 'svmRadialWeights', 'rf', 'kknn', 'adaboost', 'LogitBoost', 'cancerclass'. 'nb':Naive Bayes algorithm. 'svmRadialWeights': Support Vector Machine (SVM). 'rf': Random Forest. 'kknn': K-nearest Neighbors.'adaboost': AdaBoost Classification Trees. 'LogitBoost':Boosted Logistic Regressions. 'cancerclass': Cancerclass. 
-#' @param seed The seed you can set as any positive number, for example, 5201314.
-#' @param cores_for_parallel The cores you can choose for parallel operation. The default is 12.The bigger the better if the configuration allows it.
-#' @param positive_class The class treated as the positive/event class for ROC/AUC. Defaults to "Y".
-#' @param feature_alignment How candidate genes are aligned across cohorts.
-#'   "strict" (default) requires all candidate genes to be present in every
-#'   training/validation cohort. "intersection" preserves the legacy behavior
-#'   of training only on genes shared by all cohorts, with a warning for drops.
-#' @param tune_profile Tuning grid size profile. "standard" (default) uses a
-#'   bounded grid suitable for routine runs; "exhaustive" restores the larger
-#'   legacy grid.
-#' @param cv_folds Number of folds for repeated cross-validation. Defaults to 5.
-#' @param cv_repeats Number of repeated cross-validation rounds. Defaults to 3.
-#'
-#' @return A list containing the predictive model, the AUC, the ROC, and the candidate variables, all of which are developed by each single algorithm.
-#'
-#' @examples
 #' Resolve category ML methods and optional engines
 #' @keywords internal
 resolve_category_methods <- function(methods = NULL) {
@@ -109,6 +85,26 @@ validate_category_ml_inputs <- function(train_data,
   invisible(TRUE)
 }
 
+#' Developing the optimal predictive model for dichotomous variables with machine learning algorithms
+#'
+#' A function can be used to develop predictive models for dichotomous variables with seven machine learning algorithms.
+#'
+#' @param train_data The training data with the 'ID' and 'Var' as the first two columns. Starting in the third column are the variables used to construct the model. 'Var' is the target predictor variable for constructing the model and contains only Y or N.
+#' @param list_train_vali_Data A list containing the training data and validation data. All validation data have the same data form as the training data.
+#' @param candidate_genes The candidate variables used for constructing the predictive model.
+#' @param methods Algorithms for developing the predictive model: 'nb', 'svmRadialWeights', 'rf', 'kknn', 'adaboost', 'LogitBoost', and 'cancerclass'.
+#' @param seed Random seed. Defaults to 5201314.
+#' @param cores_for_parallel Number of worker cores for parallel operation.
+#' @param positive_class The class treated as the positive/event class for ROC/AUC. Defaults to 'Y'.
+#' @param feature_alignment How candidate genes are aligned across cohorts. 'strict' requires all candidate genes to be present in every dataset; 'intersection' trains only on genes shared by all cohorts, with a warning for drops.
+#' @param tune_profile Tuning grid size profile. 'standard' uses a bounded grid; 'exhaustive' restores the larger legacy grid.
+#' @param cv_folds Number of folds for repeated cross-validation. Defaults to 5 and is capped by the smallest class count.
+#' @param cv_repeats Number of repeated cross-validation rounds. Defaults to 3.
+#'
+#' @return A list containing predictive models, AUCs, ROCs, candidate variables, preprocessing metadata, and positive-class metadata.
+#'
+#' @examples
+#' # See package vignettes or tests for runnable examples with optional engines.
 #' @export
 ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training, the colnames of which inlcuding ID, Var, and the other candidate genes。
                                      # Var 是用于构建预测模型的目标变量，Y/N，
@@ -145,13 +141,13 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
     training <- training[, colnames(training) %in% c("Var", sig)]
     training$Var <- factor(as.character(training$Var), levels = class_levels)
     # 7 models adpoted in this study as followings:
-    #' nb': navie bayes
-    #' svmRadialWeights': Support Vector Machines with Class Weights
-    #' rf': random forest
-    #' kknn': k-Nearest Neighbors
-    #' adaboost':AdaBoost Classification Trees
-    #' LogitBoost':Boosted Logistic Regressions
-    #' cancerclass': cancerclass
+    # nb: naive bayes
+    # svmRadialWeights: Support Vector Machines with Class Weights
+    # rf: random forest
+    # kknn: k-Nearest Neighbors
+    # adaboost: AdaBoost Classification Trees
+    # LogitBoost: Boosted Logistic Regressions
+    # cancerclass: cancerclass
 
     # Grid search for parameter tuning
     Grid <- category_tune_grid(n_features = length(sig), tune_profile = tune_profile)
@@ -172,7 +168,12 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
         predictor <- cancerclass::fit(Sig.Exp.train, method = "welch.test")
         model.tune <- predictor
       } else {
-        f <- cv_folds # f folds resampling
+        f <- resolve_category_cv_folds(
+          training$Var,
+          requested_folds = cv_folds,
+          positive_class = positive_class,
+          context = paste0("category ML method '", m, "'")
+        )
         r <- cv_repeats # r repeats
         n <- f * r
 
@@ -218,53 +219,6 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
 
 
 
-  # CompareModel <- function(training, validation, method,sig){
-  #
-  #   training <- training[,colnames(training) %in% c('Var', sig)]
-  #   validation  <- validation[,colnames(validation) %in% c('Var',sig)]
-  #
-  #
-  #
-  #
-  #
-  #
-  #
-  #
-  #   auc <- lapply(ls_model,function(model.tune){
-  #     if(class(model.tune) == 'predictor'){
-  #       pData <- data.frame(class = validation$Var, sample = rownames(validation),row.names = rownames(validation))
-  #       phenoData <- new("AnnotatedDataFrame",data=pData)
-  #       Sig.Exp <- t(validation[,-1])
-  #       Sig.Exp.test <- ExpressionSet(assayData=as.matrix(Sig.Exp),phenoData=phenoData)
-  #       prediction <- predict(model.tune, Sig.Exp.test,"N", ngenes=nrow(Sig.Exp), dist = "cor")
-  #       roc <- roc(response  = prediction@prediction[,'class_membership'],
-  #                  predictor = as.numeric(prediction@prediction[,'z'])
-  #       )
-  #       roc_result <- coords(roc, "best")
-  #       auc <- data.frame(ROC=as.numeric(roc$auc), Sens = roc_result$sensitivity[1], Spec = roc_result$specificity[1])
-  #     }else {
-  #       prob <- predict(model.tune,validation[,-1],type = "prob")
-  #       pre <- predict(model.tune,validation[,-1])
-  #       test_set <- data.frame(obs = validation$Var, N = prob[,'N'], Y = prob[,'Y'], pred=pre)
-  #       auc <- twoClassSummary(test_set, lev = levels(test_set$obs))
-  #     }
-  #
-  #     return(auc)
-  #   }) %>% base::do.call(rbind,.)
-  #
-  #   rownames(auc) <- method
-  #
-  #   res <- list()
-  #
-  #   names(ls_model) = method
-  #
-  #   res[['model']] <- ls_model
-  #   res[['auc']] <- auc
-  #
-  #
-  #   return(res)
-  #
-  # }
 
 
   cal.model.auc <- function(res.by.model.Dev, cohort.for.cal, sig) {
@@ -282,9 +236,10 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
         Sig.Exp <- t(validation[, -1])
         Sig.Exp.test <- Biobase::ExpressionSet(assayData = as.matrix(Sig.Exp), phenoData = phenoData)
         prediction <- predict(model.tune, Sig.Exp.test, positive_class, ngenes = nrow(Sig.Exp), dist = "cor")
-        roc <- pROC::roc(
-          response = prediction@prediction[, "class_membership"],
-          predictor = as.numeric(prediction@prediction[, "z"])
+        roc <- category_cancerclass_roc(
+          observed = validation$Var,
+          prediction = prediction,
+          positive_class = positive_class
         )
         roc_result <- pROC::coords(roc, "best")
         auc <- data.frame(ROC = as.numeric(roc$auc), Sens = roc_result$sensitivity[1], Spec = roc_result$specificity[1])
@@ -335,9 +290,10 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
         Sig.Exp.test <- Biobase::ExpressionSet(assayData = as.matrix(Sig.Exp), phenoData = phenoData)
 
         prediction <- predict(ls_model[[models[i]]], Sig.Exp.test, positive_class, ngenes = nrow(Sig.Exp), dist = "cor")
-        roc <- pROC::roc(
-          response = prediction@prediction[, "class_membership"],
-          predictor = as.numeric(prediction@prediction[, "z"])
+        roc <- category_cancerclass_roc(
+          observed = validation$Var,
+          prediction = prediction,
+          positive_class = positive_class
         )
       }
     })

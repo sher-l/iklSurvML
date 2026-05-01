@@ -56,9 +56,10 @@ cal.auc.category.model <- function(res.by.ML.Dev.Pred.Category.Sig, ### 函数�
         Sig.Exp <- t(validation[, -1])
         Sig.Exp.test <- Biobase::ExpressionSet(assayData = as.matrix(Sig.Exp), phenoData = phenoData)
         prediction <- predict(model.tune, Sig.Exp.test, positive_class, ngenes = nrow(Sig.Exp), dist = "cor")
-        roc <- pROC::roc(
-          response = prediction@prediction[, "class_membership"],
-          predictor = as.numeric(prediction@prediction[, "z"])
+        roc <- category_cancerclass_roc(
+          observed = validation$Var,
+          prediction = prediction,
+          positive_class = positive_class
         )
         roc_result <- pROC::coords(roc, "best")
         auc <- data.frame(ROC = as.numeric(roc$auc), Sens = roc_result$sensitivity[1], Spec = roc_result$specificity[1])

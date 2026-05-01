@@ -257,6 +257,21 @@ run_all_algorithms_128 <- function(est_dd, train_data, val_dd_list,
   result <- data.frame()
   ml.res <- list()
   riskscore <- list()
+  model_skips <- character()
+  record_selector_skip <- function(selector, selector_param = NULL) {
+    reason <- "first-stage selector returned fewer than 2 variables"
+    model_skips <<- c(
+      model_skips,
+      format_model_skip_records(
+        all_mode_selector_model_names(
+          selector,
+          selector_param = selector_param,
+          model_grid = model_grid
+        ),
+        reason
+      )
+    )
+  }
 
   # ============================================
   # PHASE 1: Pre-compute feature selectors
@@ -405,13 +420,15 @@ run_all_algorithms_128 <- function(est_dd, train_data, val_dd_list,
     result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
     # RSF + StepCox (3 directions)
-    for (direction in c("both", "backward", "forward")) {
-      fit <- train_stepcox(est_dd_rsf, direction)
-      rs <- calculate_risk_scores(val_dd_list_rsf, function(x) predict_stepcox(fit, x))
-      tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0("RSF + StepCox[", direction, "]"), list_train_vali_Data)
-      result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
-    }
-  }
+	    for (direction in c("both", "backward", "forward")) {
+	      fit <- train_stepcox(est_dd_rsf, direction)
+	      rs <- calculate_risk_scores(val_dd_list_rsf, function(x) predict_stepcox(fit, x))
+	      tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0("RSF + StepCox[", direction, "]"), list_train_vali_Data)
+	      result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
+	    }
+	  } else {
+	    record_selector_skip("RSF")
+	  }
 
   # ============================================
   # PHASE 4: StepCox combinations (117-grid includes forward as first-stage selector)
@@ -479,10 +496,12 @@ run_all_algorithms_128 <- function(est_dd, train_data, val_dd_list,
       # StepCox + survival-SVM
       fit <- train_survivalsvm(est_dd_sc, seed)
       rs <- calculate_risk_scores(val_dd_list_sc, function(x) predict_survivalsvm(fit, x))
-      tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0(prefix, " + survival-SVM"), list_train_vali_Data)
-      result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
-    }
-  }
+	      tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0(prefix, " + survival-SVM"), list_train_vali_Data)
+	      result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
+	    } else {
+	      record_selector_skip("StepCox", selector_param = direction)
+	    }
+	  }
 
   # ============================================
   # PHASE 5: CoxBoost combinations (18; 117-grid omits CoxBoost + RSF)
@@ -544,9 +563,10 @@ run_all_algorithms_128 <- function(est_dd, train_data, val_dd_list,
     rs <- calculate_risk_scores(val_dd_list_coxboost, function(x) predict_survivalsvm(fit, x))
     tmp <- add_model_result(result, ml.res, riskscore, rs, fit, "CoxBoost + survival-SVM", list_train_vali_Data)
     result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
-  } else {
-    warning("The number of selected candidate genes by CoxBoost is less than 2")
-  }
+	  } else {
+	    record_selector_skip("CoxBoost")
+	    warning("The number of selected candidate genes by CoxBoost is less than 2")
+	  }
 
   # ============================================
   # PHASE 6: Lasso combinations (117-grid omits elastic-net and ridge after Lasso selection)
@@ -596,11 +616,13 @@ run_all_algorithms_128 <- function(est_dd, train_data, val_dd_list,
     result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
     # Lasso + survival-SVM
-    fit <- train_survivalsvm(est_dd_lasso, seed)
-    rs <- calculate_risk_scores(val_dd_list_lasso, function(x) predict_survivalsvm(fit, x))
-    tmp <- add_model_result(result, ml.res, riskscore, rs, fit, "Lasso + survival-SVM", list_train_vali_Data)
-    result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
-  }
+	    fit <- train_survivalsvm(est_dd_lasso, seed)
+	    rs <- calculate_risk_scores(val_dd_list_lasso, function(x) predict_survivalsvm(fit, x))
+	    tmp <- add_model_result(result, ml.res, riskscore, rs, fit, "Lasso + survival-SVM", list_train_vali_Data)
+	    result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
+	  } else {
+	    record_selector_skip("Lasso")
+	  }
 
   # ============================================
   # Summary
@@ -608,13 +630,17 @@ run_all_algorithms_128 <- function(est_dd, train_data, val_dd_list,
   message(paste0("--- Total models: ", length(ml.res), " ---"))
   warn_if_all_mode_incomplete(length(ml.res), expected = all_mode_expected, context = "All-mode")
 
-  return(list(
-    Cindex.res = result,
-    ml.res = ml.res,
-    riskscore = riskscore,
-    Sig.genes = pre_var
-  ))
-}
+	  out <- list(
+	    Cindex.res = result,
+	    ml.res = ml.res,
+	    riskscore = riskscore,
+	    Sig.genes = pre_var
+	  )
+	  if (length(model_skips) > 0L) {
+	    out$Model.skips <- unique(model_skips)
+	  }
+	  return(out)
+	}
 
 #' Optimized double algorithm runner
 #' @keywords internal

@@ -378,7 +378,16 @@ run_lasso_combination <- function(est_dd,
   x1 <- as.matrix(est_dd[, pre_var])
   x2 <- as.matrix(survival::Surv(est_dd$OS.time, est_dd$OS))
   set.seed(seed)
-  fit_lasso <- glmnet::cv.glmnet(x1, x2, nfolds = 10, family = "cox", alpha = 1)
+  fit_lasso <- glmnet::cv.glmnet(
+    x1, x2,
+    nfolds = resolve_survival_cv_folds(
+      est_dd$OS,
+      requested_folds = 10L,
+      context = "Lasso selector cross-validation"
+    ),
+    family = "cox",
+    alpha = 1
+  )
 
   rid <- get_lasso_selected_vars(fit_lasso)
 

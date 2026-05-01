@@ -426,6 +426,29 @@ all_mode_model_names <- function(model_grid = "117") {
   survival_all_mode_task_table(model_grid)$model_name
 }
 
+#' Return expected all-mode model names for a first-stage selector
+#' @keywords internal
+all_mode_selector_model_names <- function(selector,
+                                          selector_param = NULL,
+                                          model_grid = "117") {
+  selector <- normalize_survival_ml_name(selector)
+  tasks <- survival_all_mode_task_table(model_grid)
+  selected <- !is.na(tasks$selector) & tasks$selector == selector
+  if (!is.null(selector_param)) {
+    selected <- selected & tasks$selector_param == selector_param
+  }
+  tasks$model_name[selected]
+}
+
+#' Format model skip records with an explicit reason
+#' @keywords internal
+format_model_skip_records <- function(model_names, reason) {
+  if (length(model_names) == 0L) {
+    return(character())
+  }
+  paste0(model_names, ": ", reason)
+}
+
 #' Warn when an all-mode run cannot materialize the full headline model grid
 #'
 #' Some first-stage selectors can legitimately return fewer than two features on
@@ -1264,6 +1287,111 @@ category_class_levels <- function(positive_class = "Y") {
     stop("positive_class must be either 'Y' or 'N'", call. = FALSE)
   }
   c(positive_class, setdiff(c("Y", "N"), positive_class))
+}
+
+#' Cap survival CV folds to the available observations and events
+#' @keywords internal
+resolve_survival_cv_folds <- function(status,
+                                      requested_folds = 10L,
+                                      min_folds = 2L,
+                                      context = "survival cross-validation") {
+  if (length(requested_folds) != 1L || is.na(requested_folds) ||
+      requested_folds < min_folds) {
+    stop(paste0("requested_folds must be a scalar integer >= ", min_folds),
+         call. = FALSE)
+  }
+  status_num <- suppressWarnings(as.numeric(as.character(status)))
+  n_obs <- sum(!is.na(status_num))
+  event_count <- sum(status_num == 1, na.rm = TRUE)
+  max_supported <- min(n_obs, event_count)
+  if (max_supported < min_folds) {
+    stop(paste0(
+      context, " needs at least ", min_folds,
+      " events and observations for cross-validation; got ",
+      event_count, " events across ", n_obs, " observations."
+    ), call. = FALSE)
+  }
+  as.integer(min(as.integer(requested_folds), max_supported))
+}
+
+#' Cap category CV folds to the smallest class count
+#' @keywords internal
+resolve_category_cv_folds <- function(y,
+                                      requested_folds,
+                                      positive_class = "Y",
+                                      min_folds = 2L,
+                                      context = "category cross-validation") {
+  if (length(requested_folds) != 1L || is.na(requested_folds) ||
+      requested_folds < min_folds) {
+    stop(paste0("requested_folds must be a scalar integer >= ", min_folds),
+         call. = FALSE)
+  }
+  class_levels <- category_class_levels(positive_class)
+  y <- factor(as.character(y), levels = class_levels)
+  if (any(is.na(y))) {
+    stop(paste0(context, " requires non-missing Y/N class labels"),
+         call. = FALSE)
+  }
+  class_counts <- table(y)
+  min_count <- min(class_counts)
+  if (min_count < min_folds) {
+    stop(paste0(
+      context, " needs at least ", min_folds,
+      " samples per class for cross-validation; got ",
+      paste(paste0(names(class_counts), "=", as.integer(class_counts)),
+            collapse = ", "), "."
+    ), call. = FALSE)
+  }
+  as.integer(min(as.integer(requested_folds), as.integer(min_count)))
+}
+
+#' Extract cancerclass prediction scores from supported prediction objects
+#' @keywords internal
+category_cancerclass_prediction_frame <- function(prediction) {
+  if (is.data.frame(prediction)) {
+    return(prediction)
+  }
+  if (methods::is(prediction, "S4") &&
+      "prediction" %in% methods::slotNames(prediction)) {
+    return(methods::slot(prediction, "prediction"))
+  }
+  if (is.list(prediction) && !is.null(prediction$prediction)) {
+    return(prediction$prediction)
+  }
+  stop("cancerclass prediction object must contain a prediction data.frame",
+       call. = FALSE)
+}
+
+#' Build a cancerclass ROC against observed validation labels
+#' @keywords internal
+category_cancerclass_roc <- function(observed,
+                                     prediction,
+                                     positive_class = "Y") {
+  class_levels <- category_class_levels(positive_class)
+  negative_class <- setdiff(c("Y", "N"), positive_class)
+  observed <- factor(as.character(observed), levels = class_levels)
+  if (any(is.na(observed))) {
+    stop("observed labels must contain only non-missing Y/N values",
+         call. = FALSE)
+  }
+
+  prediction_df <- category_cancerclass_prediction_frame(prediction)
+  if (!"z" %in% colnames(prediction_df)) {
+    stop("cancerclass prediction output must contain a numeric 'z' column",
+         call. = FALSE)
+  }
+  score <- suppressWarnings(as.numeric(prediction_df[, "z"]))
+  if (length(score) != length(observed) || any(is.na(score))) {
+    stop("cancerclass prediction 'z' scores must be numeric and align with observed labels",
+         call. = FALSE)
+  }
+
+  pROC::roc(
+    response = observed,
+    predictor = score,
+    levels = c(negative_class, positive_class),
+    quiet = TRUE
+  )
 }
 
 #' Fit a train-only preprocessing recipe for category ML data

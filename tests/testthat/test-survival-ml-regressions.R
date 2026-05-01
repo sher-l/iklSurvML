@@ -967,6 +967,36 @@ test_that("all-mode count shortfalls warn instead of stopping", {
   expect_silent(iklSurvML:::warn_if_all_mode_incomplete(117L, expected = 117L, context = "test all-mode"))
 })
 
+test_that("survival CV folds are capped by observed events", {
+  expect_equal(
+    iklSurvML:::resolve_survival_cv_folds(c(1, 0, 1), requested_folds = 10L),
+    2L
+  )
+  expect_error(
+    iklSurvML:::resolve_survival_cv_folds(c(1, 0, 0), requested_folds = 10L),
+    "at least 2 events"
+  )
+})
+
+test_that("optimized all-mode records selector shortfall skip metadata", {
+  rsf_names <- iklSurvML:::all_mode_selector_model_names("RSF")
+  stepcox_forward_names <- iklSurvML:::all_mode_selector_model_names(
+    "StepCox",
+    selector_param = "forward"
+  )
+  skip_records <- iklSurvML:::format_model_skip_records(
+    rsf_names[1:2],
+    "first-stage selector returned fewer than 2 variables"
+  )
+  body_text <- paste(deparse(iklSurvML:::run_all_algorithms_128), collapse = "\n")
+
+  expect_equal(length(rsf_names), 19L)
+  expect_equal(length(stepcox_forward_names), 17L)
+  expect_match(skip_records[[1]], "first-stage selector returned fewer than 2 variables")
+  expect_true(grepl("Model.skips", body_text, fixed = TRUE))
+  expect_true(grepl("record_selector_skip", body_text, fixed = TRUE))
+})
+
 test_that("all-mode partial results require an explicit opt-in", {
   partial_result <- list(
     ml.res = list(Mock = structure(list(), class = "mock")),
