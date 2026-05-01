@@ -13,6 +13,7 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' dataset_col<-c("#3182BDFF","#E6550DFF")
 #' corplot <- list()
 #' for (i in c(1:2)) {
@@ -25,6 +26,7 @@
 #' }
 #' aplot::plot_list(gglist=corplot,ncol=2)
 #' 
+#' }
 cor_plot <- function(obj, # expression data frame
                      dataset, # the cohort name of InputMatrix
                      color = NULL, # color value

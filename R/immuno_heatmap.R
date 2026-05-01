@@ -12,12 +12,14 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' immuno_heatmap(res,
 #'             devo,
 #'             model_name="StepCox[backward] + plsRcox",
 #'             dataset="Dataset1")
 #' 
 #' 
+#' }
 immuno_heatmap<-function(object,# output of ML.Dev.Prog.Sig
                          object2, # output of TME_deconvolution_all
                          model_name, ## input specific model name

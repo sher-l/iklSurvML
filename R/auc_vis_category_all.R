@@ -11,9 +11,11 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' auc_vis_category_all(res.ici,dataset = c("training","validation"),
 #'                      order= c("training","validation"))
 #' 
+#' }
 auc_vis_category_all <- function(object, # output of ML.Dev.Pred.Category.Sig
                                  dataset, # input identical name of cohort in output of ML.Dev.Pred.Category.Sig
                                  order = NULL, # cohort order plot and input identical name of cohort in output of ML.Dev.Pred.Category.Sig

@@ -50,11 +50,11 @@
 #'   retained for API compatibility and used only when `mode = "all"`.
 #'
 #' @return A list containing:
-#'   \itemize{
-#'     \item{Cindex.res}{ - C-index results for each model in each dataset}
-#'     \item{ml.res}{ - Trained model objects}
-#'     \item{riskscore}{ - Risk scores for each sample}
-#'     \item{Sig.genes}{ - Signature genes used in the model}
+#'   \describe{
+#'     \item{Cindex.res}{C-index results for each model in each dataset.}
+#'     \item{ml.res}{Trained model objects.}
+#'     \item{riskscore}{Risk scores for each sample.}
+#'     \item{Sig.genes}{Signature genes used in the model.}
 #'   }
 #'
 #' @export

@@ -23,6 +23,7 @@ Creates an upset plot of genes filtered by different methods
 }
 \examples{
 \dontrun{
-# See package documentation for full workflows.
+core_feature_select(res.feature.all)
+
 }
 }

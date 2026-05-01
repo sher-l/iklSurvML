@@ -13,12 +13,14 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' auc_dis_select(list(all.auc.1y,all.auc.3y,all.auc.5y),
 #'             model_name="StepCox[both] + plsRcox",
 #'             dataset = names(list_train_vali_Data),
 #'             order= names(list_train_vali_Data),
 #'             year=c(1,3,5))
 #'
+#' }
 auc_dis_select <- function(object, # a list of output of cal_AUC_ml_res  mode = "all",'single' or 'double'
                            model_name, # input specific model name
                            dataset_col = NULL, # color value for cohort

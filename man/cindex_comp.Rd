@@ -25,6 +25,10 @@ Creates a distribution plot of C-index among different mdoels
 }
 \examples{
 \dontrun{
-# See package documentation for full workflows.
+cindex_comp(cc.glioma.lgg.gbm,
+            res,
+            model_name="StepCox[both] + plsRcox",
+            dataset=names(list_train_vali_Data))
+
 }
 }

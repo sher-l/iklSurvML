@@ -13,6 +13,7 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' methods = c('nb','svmRadialWeights','rf','kknn','adaboost','LogitBoost','cancerclass')
 #' plot_list<-list()
 #' for (i in methods) {
@@ -22,6 +23,7 @@
 #' }
 #' aplot::plot_list(gglist=plot_list,ncol=3)
 #'
+#' }
 roc_vis_category <- function(object, # output of ML.Dev.Pred.Category.Sig
                              model_name, # input one identical model name in output of ML.Dev.Pred.Category.Sig
                              dataset, # input identical name of cohort in output of ML.Dev.Pred.Category.Sig

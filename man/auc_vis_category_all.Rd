@@ -23,6 +23,8 @@ Creates a distribution plot of AUC among different methods when predicting respo
 }
 \examples{
 \dontrun{
-# See package documentation for full workflows.
+auc_vis_category_all(res.ici,dataset = c("training","validation"),
+                     order= c("training","validation"))
+
 }
 }

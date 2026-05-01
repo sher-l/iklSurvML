@@ -11,8 +11,10 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' cindex_dis_select(res, model="StepCox[both] + plsRcox", order= names(list_train_vali_Data))
 #'
+#' }
 cindex_dis_select <- function(object, # output of ML.Dev.Prog.Sig mode = "all",'single' or 'double'
                               dataset_col = NULL, # color value for cohort
                               model, ## if input object is from mode=all, then define model as specific model name while SOD

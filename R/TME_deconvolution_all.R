@@ -24,7 +24,9 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' test.devo <- TME_deconvolution_all(list_train_vali_Data)
+#' }
 TME_deconvolution_all <- function(inputmatrix.list, # A list contain the dataframes (colnames:ID,OS.time,OS,other genes), log2(x+1)， OS.time(day), OS(0/1)
                                   deconvolution_method = c("xcell", "epic", "abis", "estimate", "cibersort", "cibersort_abs"), # Deconvolution Methods in c("quantiseq", "xcell", "epic", "abis", "mcp_counter", "estimate", "cibersort", "cibersort_abs", "timer", "consensus_tme")
                                   microarray_names = "none", # Please tell us which datasets are microarray, use the names of elements in inputmatrix.list. such as c("CGGA.array", "GSE108474", "GSE16011", "GSE43289", "GSE7696") if none, enter "none".

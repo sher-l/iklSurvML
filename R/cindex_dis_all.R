@@ -14,8 +14,10 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' cindex_dis_all(res,validate_set = names(list_train_vali_Data)[-1],order =names(list_train_vali_Data),width = 0.2)
 #'
+#' }
 cindex_dis_all <- function(object, # output of ML.Dev.Prog.Sig mode = 'all'
                            color = NULL, # three color value for cindex and two color value for mean cindex
                            dataset_col = NULL, # color value for cohort

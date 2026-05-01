@@ -25,6 +25,11 @@ Creates a heatmap of immune cell infiltration among different methods
 }
 \examples{
 \dontrun{
-# See package documentation for full workflows.
+immuno_heatmap(res,
+            devo,
+            model_name="StepCox[backward] + plsRcox",
+            dataset="Dataset1")
+
+
 }
 }

@@ -16,6 +16,7 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' auc_dis_all(all.auc.1y,
 #'          dataset = names(list_train_vali_Data),
 #'          validate_set=names(list_train_vali_Data)[-1],
@@ -23,6 +24,7 @@
 #'          width = 0.2,
 #'          year=1)
 #'
+#' }
 auc_dis_all <- function(object, # output of cal_AUC_ml_res mode = 'all'
                         color = NULL, # three color value for cindex, two color value for mean cindex and two color for HR
                         dataset_col = NULL, # color value for cohort

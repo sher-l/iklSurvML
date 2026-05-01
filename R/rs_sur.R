@@ -1,4 +1,4 @@
-#' Survival curve of patients  
+#' Survival curve of patients
 #'
 #' Creates a survival curve of patients according to risk score calculated by specific selected method among different datasets
 #'
@@ -6,7 +6,7 @@
 #' @param model_name Model name in object to plot
 #' @param dataset Identical name of dataset in object to plot
 #' @param cutoff Cutoff for patient's group, which can be mean or quantile value
-#' @param conf.int If TRUE, plot with confidence intervals otherwise FALSE 
+#' @param conf.int If TRUE, plot with confidence intervals otherwise FALSE
 #' @param median.line Drawing a horizontal/vertical line at median survival, it can be c("none", "hv", "h", "v"). If NULL, plot without line (default).
 #' @param color If NULL, color values are set to the default colors. Otherwise, you can specify two color values for high and low group
 #' @param xlab X axis title
@@ -16,7 +16,8 @@
 #' @export
 #'
 #' @examples
-#' survplot <- vector("list",2) 
+#' \dontrun{
+#' survplot <- vector("list",2)
 #' for (i in c(1:2)) {
 #'   print(survplot[[i]]<-rs_sur(res, model_name = "StepCox[both] + plsRcox",dataset = names(list_train_vali_Data)[i],
 #'                               #color=c("blue","green"),
@@ -26,6 +27,7 @@
 #'                               xlab="Day",pval.coord=c(1000,0.9)))}
 #' aplot::plot_list(gglist=survplot,ncol=2)
 #'
+#' }
 rs_sur <- function(object, # output of ML.Dev.Prog.Sig  mode = "all",'single' or 'double'
                    model_name, # input identical model name in output of ML.Dev.Prog.Sig
                    dataset, # input identical name of cohort in output of ML.Dev.Prog.Sig

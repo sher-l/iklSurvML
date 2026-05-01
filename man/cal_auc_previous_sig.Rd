@@ -2,7 +2,7 @@
 % Please edit documentation in R/cal_auc_previous_immunotherapy_sig.R
 \name{cal_auc_previous_sig}
 \alias{cal_auc_previous_sig}
-\title{Calculating the Area Under the Curve of the previous signatures for immunotherapy response.}
+\title{Calculating the Area Under the Curve of the previous signatures for immunotherapy response}
 \usage{
 cal_auc_previous_sig(
   list_train_vali_Data,
@@ -24,5 +24,5 @@ cal_auc_previous_sig(
 A list of the AUC results of each signature we collected in each data.
 }
 \description{
-Calculating the Area Under the Curve of the previous signatures for immunotherapy response.
+Calculating the Area Under the Curve of the previous signatures for immunotherapy response
 }

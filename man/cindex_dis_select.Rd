@@ -23,6 +23,7 @@ Creates a distribution plot of C-index among different datasets for specific sel
 }
 \examples{
 \dontrun{
-# See package documentation for full workflows.
+cindex_dis_select(res, model="StepCox[both] + plsRcox", order= names(list_train_vali_Data))
+
 }
 }

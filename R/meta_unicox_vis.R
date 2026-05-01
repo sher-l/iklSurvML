@@ -10,9 +10,11 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' meta_unicox_vis(metamodel,
 #'                 dataset = names(list_train_vali_Data))
 #' 
+#' }
 meta_unicox_vis <- function(object, # output of cal_unicox_meta_ml_res
                             dataset_col = NULL, # color value for cohorts
                             dataset # input datasets name

@@ -12,11 +12,13 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' cindex_comp(cc.glioma.lgg.gbm,
 #'             res,
 #'             model_name="StepCox[both] + plsRcox",
 #'             dataset=names(list_train_vali_Data))
 #' 
+#' }
 cindex_comp <- function(object, # output of cal_RS_pre.prog.sig
                         object2, # output of ML.Dev.Prog.Sig
                         model_name, ## if input object2 is from mode=all, then define model as specific model name while SOD

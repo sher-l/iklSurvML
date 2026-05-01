@@ -43,6 +43,18 @@ Creates a survival curve of patients according to expression of specific gene am
 }
 \examples{
 \dontrun{
-# See package documentation for full workflows.
+survplot <- vector("list",2)
+for (i in c(1:2)) {
+  print(survplot[[i]]<-core_feature_sur("PSEN2",
+                                        InputMatrix=list_train_vali_Data[[i]],
+                                        dataset = names(list_train_vali_Data)[i],
+                                        #color=c("blue","green"),
+                                        median.line = "hv",
+                                        cutoff = 0.5,
+                                        conf.int = T,
+                                        xlab="Day",pval.coord=c(1000,0.9)))
+}
+aplot::plot_list(gglist=survplot,ncol=2)
+
 }
 }

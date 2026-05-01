@@ -14,6 +14,7 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' roc_vis(all.auc.1y,
 #'      model_name = "StepCox[both] + plsRcox",
 #'      dataset = names(list_train_vali_Data),
@@ -21,6 +22,7 @@
 #'      anno_position=c(0.65,0.55),
 #'      year=1)
 #'
+#' }
 roc_vis <- function(object, # output of cal_AUC_ml_res  mode = "all",'single' or 'double'
                     model_name, # input one identical model name in output of cal_AUC_ml_res
                     dataset, # input identical name of cohort in output of cal_AUC_ml_res

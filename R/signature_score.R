@@ -13,7 +13,9 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' test.sig <- signature_score(res, list_train_vali_Data)
+#' }
 
 signature_score <- function(res.by.ML.Dev.Prog.Sig, # ML.Dev.Prog.Sig, 函数计算结果
                             inputmatrix.list, # A list contain the dataframes (colnames:ID,OS.time,OS,other genes), log2(x+1)， OS.time(day), OS(0/1)

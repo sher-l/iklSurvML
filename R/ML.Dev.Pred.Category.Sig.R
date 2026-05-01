@@ -106,7 +106,9 @@ validate_category_ml_inputs <- function(train_data,
 #' @return A list containing predictive models, AUCs, ROCs, candidate variables, preprocessing metadata, and positive-class metadata.
 #'
 #' @examples
+#' \dontrun{
 #' # See package vignettes or tests for runnable examples with optional engines.
+#' }
 #' @export
 ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training, the colnames of which inlcuding ID, Var, and the other candidate genes。
                                      # Var 是用于构建预测模型的目标变量，Y/N，

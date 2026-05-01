@@ -11,8 +11,10 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' core_feature_select(res.feature.all)
 #' 
+#' }
 core_feature_select <- function(object, # output of ML.Corefeature.Prog.Screen, mode= all or all_without_SVM
                                 sets = NULL, # names of method
                                 mb.ratio = NULL, # Ratio between matrix plot and main bar plot

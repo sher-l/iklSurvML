@@ -25,6 +25,11 @@ Creates a distribution plot of AUC among different mdoels
 }
 \examples{
 \dontrun{
-# See package documentation for full workflows.
+auc_category_comp(res.ici,
+            auc.other.pre,
+            model_name="svmRadialWeights",
+            dataset=names(list_train_vali_Data))
+
+
 }
 }

@@ -9,6 +9,7 @@
 # ---- ML.Corefeature.Prog.Screen alias ----
 
 #' @rdname ML.Corefeature.Prog.Screen
+#' @param ... Arguments passed to `ML.Corefeature.Prog.Screen()`.
 #' @export
 ml_corefeature_prog_screen <- function(...) {
   ML.Corefeature.Prog.Screen(...)
@@ -17,6 +18,7 @@ ml_corefeature_prog_screen <- function(...) {
 # ---- ML.Dev.Pred.Category.Sig alias ----
 
 #' @rdname ML.Dev.Pred.Category.Sig
+#' @param ... Arguments passed to `ML.Dev.Pred.Category.Sig()`.
 #' @export
 ml_dev_pred_category_sig <- function(...) {
   ML.Dev.Pred.Category.Sig(...)
@@ -25,6 +27,7 @@ ml_dev_pred_category_sig <- function(...) {
 # ---- cal_AUC_ml_res alias ----
 
 #' @rdname cal_AUC_ml_res
+#' @param ... Arguments passed to `cal_AUC_ml_res()`.
 #' @export
 cal_auc_ml_res <- function(...) {
   cal_AUC_ml_res(...)
@@ -33,6 +36,7 @@ cal_auc_ml_res <- function(...) {
 # ---- cal_RS_ml_res alias ----
 
 #' @rdname cal_RS_ml_res
+#' @param ... Arguments passed to `cal_RS_ml_res()`.
 #' @export
 cal_rs_ml_res <- function(...) {
   cal_RS_ml_res(...)
@@ -41,6 +45,7 @@ cal_rs_ml_res <- function(...) {
 # ---- cal_RS_pre.prog.sig alias ----
 
 #' @rdname cal_RS_pre.prog.sig
+#' @param ... Arguments passed to `cal_RS_pre.prog.sig()`.
 #' @export
 cal_rs_pre_prog_sig <- function(...) {
   cal_RS_pre.prog.sig(...)
@@ -49,6 +54,7 @@ cal_rs_pre_prog_sig <- function(...) {
 # ---- cal_auc_pre.prog.sig alias ----
 
 #' @rdname cal_auc_pre.prog.sig
+#' @param ... Arguments passed to `cal_auc_pre.prog.sig()`.
 #' @export
 cal_auc_pre_prog_sig <- function(...) {
   cal_auc_pre.prog.sig(...)
@@ -57,6 +63,7 @@ cal_auc_pre_prog_sig <- function(...) {
 # ---- cal_cindex_pre.prog.sig alias ----
 
 #' @rdname cal_cindex_pre.prog.sig
+#' @param ... Arguments passed to `cal_cindex_pre.prog.sig()`.
 #' @export
 cal_cindex_pre_prog_sig <- function(...) {
   cal_cindex_pre.prog.sig(...)
@@ -70,6 +77,7 @@ cal_cindex_pre_prog_sig <- function(...) {
 # ---- TME_deconvolution_all alias ----
 
 #' @rdname TME_deconvolution_all
+#' @param ... Arguments passed to `TME_deconvolution_all()`.
 #' @export
 tme_deconvolution_all <- function(...) {
   TME_deconvolution_all(...)
@@ -78,6 +86,7 @@ tme_deconvolution_all <- function(...) {
 # ---- HR_com alias ----
 
 #' @rdname HR_com
+#' @param ... Arguments passed to `HR_com()`.
 #' @export
 hr_com <- function(...) {
   HR_com(...)
@@ -116,6 +125,7 @@ hr_com <- function(...) {
 # ---- cal.auc.category.model alias ----
 
 #' @rdname cal.auc.category.model
+#' @param ... Arguments passed to `cal.auc.category.model()`.
 #' @export
 cal_auc_category_model <- function(...) {
   cal.auc.category.model(...)
@@ -124,6 +134,7 @@ cal_auc_category_model <- function(...) {
 # ---- cal.roc.category.model alias ----
 
 #' @rdname cal.roc.category.model
+#' @param ... Arguments passed to `cal.roc.category.model()`.
 #' @export
 cal_roc_category_model <- function(...) {
   cal.roc.category.model(...)

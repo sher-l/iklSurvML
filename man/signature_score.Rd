@@ -40,6 +40,6 @@ Calculating Signature Score using IOBR
 }
 \examples{
 \dontrun{
-# See package documentation for full workflows.
+test.sig <- signature_score(res, list_train_vali_Data)
 }
 }

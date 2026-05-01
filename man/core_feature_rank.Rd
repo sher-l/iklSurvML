@@ -21,6 +21,7 @@ Creates a rank plot of genes filtered by different methods
 }
 \examples{
 \dontrun{
-# See package documentation for full workflows.
+core_feature_rank(res.feature.all, top=10)
+
 }
 }

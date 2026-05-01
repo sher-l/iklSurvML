@@ -21,6 +21,8 @@ Creates a summary table of meta analysis results
 }
 \examples{
 \dontrun{
-# See package documentation for full workflows.
+meta_unicox_vis(metamodel,
+                dataset = names(list_train_vali_Data))
+
 }
 }

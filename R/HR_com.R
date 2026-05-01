@@ -14,12 +14,14 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' HR_com(rs.glioma.lgg.gbm,
 #'     res,
 #'     model_name="RSF + survival-SVM",
 #'     dataset=names(list_train_vali_Data),
 #'     type = "categorical")
 #'
+#' }
 HR_com <- function(object, # output of cal_auc_pre.prog.sig
                    object2, # output of cal_AUC_ml_res
                    color = NULL, # three color value for HR

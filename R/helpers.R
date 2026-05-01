@@ -480,6 +480,8 @@ format_model_skip_records <- function(model_names, reason) {
 #' weak or low-dimensional data. In that case the affected two-stage models
 #' cannot be fit, but already materialized models are still useful and should be
 #' returned instead of being discarded by a final count assertion.
+#' @keywords internal
+#' @noRd
 warn_if_all_mode_incomplete <- function(actual, expected = all_mode_model_grid_size(), context = "All-mode") {
   actual <- as.integer(actual)
   expected <- as.integer(expected)

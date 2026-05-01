@@ -12,11 +12,13 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' auc_comp(auc.glioma.lgg.gbm.1,
 #'          all.auc.1y,
 #'          model_name="StepCox[both] + plsRcox",
 #'          dataset=names(list_train_vali_Data))
 #' 
+#' }
 auc_comp <- function(object, # output of cal_auc_pre.prog.sig
                      object2, # output of cal_AUC_ml_res
                      model_name, ## input specific model name

@@ -10,8 +10,10 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' core_feature_rank(res.feature.all, top=10)
 #' 
+#' }
 core_feature_rank <- function(object, # output of ML.Corefeature.Prog.Screen
                               col = NULL, # color value for segment and point
                               top = NULL # top number gene to show

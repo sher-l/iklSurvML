@@ -12,12 +12,14 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' auc_category_comp(res.ici,
 #'             auc.other.pre,
 #'             model_name="svmRadialWeights",
 #'             dataset=names(list_train_vali_Data))
 #' 
 #' 
+#' }
 auc_category_comp<-function(object,# output of ML.Dev.Pred.Category.Sig
                       object2, # output of cal_auc_previous_sig
                       model_name, ## c('nb','svmRadialWeights','rf','kknn','adaboost','LogitBoost','cancerclass')

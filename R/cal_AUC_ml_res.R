@@ -2,9 +2,9 @@
 #'
 #' @param res.by.ML.Dev.Prog.Sig the results of function ML.Dev.Prog.Sig
 #' @param train_data the training data using in ML.Dev.Prog.Sig
-#' @param inputmatrix.list A list contain the dataframes (colnames:ID,OS.time,OS,other genes), log2(x+1)， OS.time(day), OS(0/1)
+#' @param inputmatrix.list A list containing data frames with columns ID, OS.time, OS, and model genes; expression values should be log2(x+1) scaled.
 #' @param mode Choose MF models: all, single, double
-#' @param AUC_time  c(1,2,3,4,5,6,7,······), for 1 year, 2 years, 3 years......We recommend using the shortest survival time among all queues.
+#' @param AUC_time Time horizon in years, for example 1, 2, or 3. Use a horizon shorter than the minimum maximum survival time across cohorts.
 #' @param single_ml If the mode is set to "single", you must fill in the following models: c("RSF", "Enet", "StepCox","CoxBoost","plsRcox","superpc","GBM","survivalsvm","Ridge","Lasso").
 #' @param double_ml1 If the mode is set to "double", you need to fill in the modeling methods here: c('RSF', "StepCox","CoxBoost","Lasso").
 #' @param double_ml2 If the mode is set to "double", you need to fill in the modeling methods here: c("RSF", "Enet", "StepCox","CoxBoost","plsRcox","superpc","GBM","survivalsvm","Ridge","Lasso")
@@ -16,6 +16,7 @@
 #' @export
 #'
 #' @examples
+#' \dontrun{
 #' all.auc.1y <- cal_AUC_ml_res(
 #'   res.by.ML.Dev.Prog.Sig = res,
 #'   train_data = list_train_vali_Data[["TCGA"]],
@@ -24,6 +25,7 @@
 #'   auc_cal_method = "KM"
 #' )
 #'
+#' }
 cal_AUC_ml_res <- function(res.by.ML.Dev.Prog.Sig = NULL, # ML.Dev.Prog.Sig, 函数计算结果
                            train_data, # ML.Dev.Prog.Sig 中的训练集
                            inputmatrix.list, # A list contain the dataframes (colnames:ID,OS.time,OS,other genes), log2(x+1)， OS.time(day), OS(0/1)

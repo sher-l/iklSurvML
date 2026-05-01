@@ -34,6 +34,11 @@ Creates a distribution plot of AUC among different datasets for specific selecte
 }
 \examples{
 \dontrun{
-# See package documentation for full workflows.
+auc_dis_select(list(all.auc.1y,all.auc.3y,all.auc.5y),
+            model_name="StepCox[both] + plsRcox",
+            dataset = names(list_train_vali_Data),
+            order= names(list_train_vali_Data),
+            year=c(1,3,5))
+
 }
 }
