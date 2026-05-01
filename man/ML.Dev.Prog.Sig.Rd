@@ -18,7 +18,10 @@ ML.Dev.Prog.Sig(
   double_ml2 = NULL,
   nodesize = NULL,
   seed = NULL,
-  cores_for_parallel = NULL
+  cores_for_parallel = NULL,
+  feature_alignment = c("strict", "intersection"),
+  model_grid = "117",
+  allow_partial = FALSE
 )
 }
 \arguments{
@@ -49,6 +52,12 @@ ML.Dev.Prog.Sig(
 \item{seed}{The seed you can set as any positive integer, for example, 5201314.}
 
 \item{cores_for_parallel}{Number of cores for parallel processing. Default is 6.}
+
+\item{feature_alignment}{How candidate genes are aligned across cohorts. \"strict\" requires all candidate genes to be present in every training/validation cohort; \"intersection\" preserves the legacy behavior of training only on genes shared by all cohorts, with a warning for drops.}
+
+\item{model_grid}{All-mode model grid to run. Only \code{"117"} is supported; retained for API compatibility and used only when \code{mode = "all"}.}
+
+\item{allow_partial}{Logical. For \code{mode = "all"}, whether to return a partial model grid when some first-stage selectors or backend models fail. Defaults to \code{FALSE} so incomplete all-mode runs fail explicitly instead of looking complete.}
 }
 \value{
 A list containing the developed predictive model, the risk score of the model in each data, the C index of the model in each data, and the variables used to construct the model.

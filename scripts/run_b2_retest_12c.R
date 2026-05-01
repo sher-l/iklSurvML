@@ -1,6 +1,6 @@
-artifact_dir <- "/tmp/iklSurvML-retest/B2-12c-lab"
-workspace <- normalizePath("/tmp/iklSurvML-b2-lab", mustWork = TRUE)
-dataset_path <- normalizePath("/tmp/iklSurvML-audit/shared-smoke-50x20-seed101.rds", mustWork = TRUE)
+artifact_dir <- Sys.getenv("IKLSURVML_B2_ARTIFACT_DIR", "/tmp/iklSurvML-retest/B2-12c-lab")
+workspace <- normalizePath(Sys.getenv("IKLSURVML_B2_WORKSPACE", getwd()), mustWork = TRUE)
+dataset_path <- Sys.getenv("IKLSURVML_B2_FIXTURE", "")
 
 dir.create(artifact_dir, recursive = TRUE, showWarnings = FALSE)
 
@@ -14,7 +14,10 @@ elapsed_seconds <- NA_real_
 writeLines(character(), file.path(artifact_dir, "warnings.txt"))
 writeLines(character(), file.path(artifact_dir, "error.txt"))
 
-dataset <- readRDS(dataset_path)
+if (!nzchar(dataset_path)) {
+  stop("Set IKLSURVML_B2_FIXTURE to the shared smoke RDS fixture path")
+}
+dataset <- readRDS(normalizePath(dataset_path, mustWork = TRUE))
 
 pkgload::load_all(workspace, export_all = FALSE, quiet = TRUE)
 

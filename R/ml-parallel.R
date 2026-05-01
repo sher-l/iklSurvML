@@ -1,21 +1,61 @@
-# Parallel Execution for 117 Algorithm Combinations
+# Parallel Execution for Fixed 117 All-Mode Algorithm Combinations
 #
 # Linux-only using fork (mclapply)
 # Fixed 12 cores with progress display
 
-#' Run all 117 combinations in parallel
-#' @inheritParams run_all_algorithms_117
+#' Split GBM tasks out of fork workers for process safety
+#'
+#' gbm's cross-validation code can segfault when run inside fork workers on
+#' some Linux/R combinations. Keep GBM model fits in the parent process and run
+#' the remaining task families via mclapply.
+#'
+#' @keywords internal
+split_gbm_tasks_for_fork_safety <- function(task_names) {
+  sequential <- task_names[grepl("GBM", task_names, fixed = TRUE)]
+  parallel <- task_names[!task_names %in% sequential]
+  list(sequential = sequential, parallel = parallel)
+}
+
+#' Execute one model-building task with error promotion payloads
+#'
+#' @keywords internal
+execute_model_task <- function(task_name, tasks, thread_env = NULL) {
+  if (!is.null(thread_env) && length(thread_env) > 0) {
+    do.call(Sys.setenv, as.list(thread_env))
+  }
+
+  res <- NULL
+  invisible(utils::capture.output({
+    res <- tryCatch(
+      suppressPackageStartupMessages(suppressMessages(tasks[[task_name]]())),
+      error = function(e) list(name = task_name, error = conditionMessage(e))
+    )
+  }))
+  if (is.null(res$name)) {
+    res$name <- task_name
+  }
+  res
+}
+
+#' Run all-mode combinations in parallel
+#' @inheritParams run_all_algorithms_128
 #' @param cores Number of cores (default: 12)
 #' @return Combined results
 #' @keywords internal
-run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
+run_all_algorithms_128_parallel <- function(est_dd, train_data, val_dd_list,
                                              list_train_vali_Data, pre_var,
-                                             rf_nodesize, seed, cores = 12) {
+                                             rf_nodesize, seed, cores = 12,
+                                             model_grid = "117") {
+  model_grid <- normalize_all_mode_model_grid(model_grid)
+  all_mode_expected <- all_mode_model_grid_size(model_grid)
+  stepcox_selector_dirs <- all_mode_stepcox_selector_dirs(model_grid)
+
   # Platform compatibility check
   if (.Platform$OS.type == "windows") {
     warning("Parallel execution using mclapply is not supported on Windows. ",
             "Falling back to sequential execution (mc.cores=1). ",
             "Use ML.Dev.Prog.Sig() for cross-platform compatibility.")
+    cores <- 1L
   }
 
   # Cap native thread pools before Phase 1 so forked workers do not inherit
@@ -53,16 +93,8 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
   # ============================================
   cat("\n=== Phase 1/2: Training feature selectors ===\n")
 
-  set.seed(seed)
-  Surv <- survival::Surv
-
   # RSF
-  rsf_fit <- randomForestSRC::rfsrc(
-    Surv(OS.time, OS) ~ ., data = est_dd,
-    ntree = 1000, nodesize = rf_nodesize,
-    splitrule = "logrank", importance = TRUE,
-    proximity = TRUE, forest = TRUE, seed = seed
-  )
+  rsf_fit <- train_rsf(est_dd, rf_nodesize, seed)
   set.seed(seed)
   rsf_vars <- randomForestSRC::var.select(object = rsf_fit, conservative = "high")$topvars
   cat(sprintf("  RSF: %d vars\n", length(rsf_vars)))
@@ -78,7 +110,8 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
 
   # CoxBoost
   coxboost_fit <- train_coxboost(est_dd, seed)
-  coxboost_vars <- pre_var
+  coxboost_vars <- get_coxboost_selected_vars(coxboost_fit)
+  cat(sprintf("  CoxBoost: %d vars\n", length(coxboost_vars)))
 
   # Lasso
   lasso_fit <- train_lasso(est_dd, pre_var, seed)
@@ -88,14 +121,18 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
   # ============================================
   # PHASE 2: Generate ALL parallel tasks
   # ============================================
-  cat(sprintf("=== Phase 2/2: Running 117 combinations in parallel (%d cores) ===\n", cores))
+  cat(sprintf(
+    "=== Phase 2/2: Running %d all-mode combinations in parallel (%d cores) ===\n",
+    all_mode_expected,
+    cores
+  ))
   gbm_worker_cores <- 1L
 
   # RSF prediction on a precomputed randomForestSRC fit can hang after fork on
   # Linux, even when other task families (e.g. Enet/glmnet) run correctly in
   # parallel. Materialize the single RSF model result before entering mclapply
   # so the parallel queue only contains fork-safe training/prediction work.
-  rsf_rs <- calculate_risk_scores(val_dd_list, function(x) predict(rsf_fit, newdata = x)$predicted)
+  rsf_rs <- calculate_risk_scores(val_dd_list, function(x) predict_rsf(rsf_fit, x))
   rsf_cc <- calculate_cindex_result(return_id_to_rs(rsf_rs, list_train_vali_Data), "RSF")
   result <- rbind(result, rsf_cc)
   ml.res[["RSF"]] <- rsf_fit
@@ -145,7 +182,7 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
 
   tasks[["SuperPC"]] <- function() {
     spc <- train_superpc(est_dd, seed)
-    rs <- lapply(val_dd_list, function(x) cbind(x[, 1:2], RS = predict_superpc(spc$fit, spc$cv_fit, est_dd, x)))
+    rs <- lapply(val_dd_list, function(x) cbind(x[, 1:2], RS = predict_superpc_model(spc, est_dd, x)))
     list(name = "SuperPC", rs = rs, fit = spc)
   }
 
@@ -155,10 +192,10 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
     list(name = "GBM", rs = rs, fit = gbm)
   }
 
-  tasks[["survival - SVM"]] <- function() {
+  tasks[["survival-SVM"]] <- function() {
     fit <- train_survivalsvm(est_dd, seed)
     rs <- calculate_risk_scores(val_dd_list, function(x) predict_survivalsvm(fit, x))
-    list(name = "survival - SVM", rs = rs, fit = fit)
+    list(name = "survival-SVM", rs = rs, fit = fit)
   }
 
   tasks[["Ridge"]] <- function() {
@@ -225,7 +262,7 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
 
     tasks[["RSF + SuperPC"]] <- function() {
       spc <- train_superpc(est_rsf, seed)
-      rs <- lapply(val_rsf, function(x) cbind(x[, 1:2], RS = predict_superpc(spc$fit, spc$cv_fit, est_rsf, x)))
+      rs <- lapply(val_rsf, function(x) cbind(x[, 1:2], RS = predict_superpc_model(spc, est_rsf, x)))
       list(name = "RSF + SuperPC", rs = rs, fit = spc)
     }
 
@@ -249,8 +286,8 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
     }
   }
 
-  # ---- Phase 2C: StepCox combinations (51 = 3 x 17) ----
-  for (dir in c("both", "backward", "forward")) {
+  # ---- Phase 2C: StepCox combinations (117-grid includes forward as first-stage selector) ----
+  for (dir in stepcox_selector_dirs) {
     local({
     sc_vars <- stepcox_vars[[dir]]
     if (length(sc_vars) > 1) {
@@ -259,15 +296,8 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
       prefix <- paste0("StepCox[", dir, "]")
       d <- dir
 
-      fit_sc_rsf <- randomForestSRC::rfsrc(
-        Surv(OS.time, OS) ~ .,
-        data = est_sc,
-        ntree = 1000,
-        nodesize = rf_nodesize,
-        splitrule = "logrank",
-        seed = seed
-      )
-      rs_sc_rsf <- calculate_risk_scores(val_sc, function(x) predict(fit_sc_rsf, newdata = x)$predicted)
+      fit_sc_rsf <- train_rsf(est_sc, rf_nodesize, seed)
+      rs_sc_rsf <- calculate_risk_scores(val_sc, function(x) predict_rsf(fit_sc_rsf, x))
       tmp <- add_model_result(
         result,
         ml.res,
@@ -325,7 +355,7 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
 
       tasks[[paste0(prefix, " + SuperPC")]] <<- function() {
         spc <- train_superpc(est_sc, seed)
-        rs <- lapply(val_sc, function(x) cbind(x[, 1:2], RS = predict_superpc(spc$fit, spc$cv_fit, est_sc, x)))
+        rs <- lapply(val_sc, function(x) cbind(x[, 1:2], RS = predict_superpc_model(spc, est_sc, x)))
         list(name = paste0("StepCox[", d, "] + SuperPC"), rs = rs, fit = spc)
       }
 
@@ -338,83 +368,83 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
     })
   }
 
-  # ---- Phase 2D: CoxBoost combinations (19) ----
-  # CoxBoost + Enet (9)
-  for (alpha in seq(0.1, 0.9, 0.1)) {
-    local({
-    nm <- paste0("CoxBoost + Enet[\u03b1=", alpha, "]")
-    a <- alpha
-    tasks[[nm]] <<- function() {
-      fit <- train_enet(est_dd, pre_var, a, seed)
-      rs <- calculate_risk_scores(val_dd_list, function(x) predict_enet(fit, x, pre_var))
-      list(name = paste0("CoxBoost + Enet[\u03b1=", a, "]"), rs = rs, fit = fit)
+  # ---- Phase 2D: CoxBoost combinations (18; 117-grid omits CoxBoost + RSF) ----
+  if (length(coxboost_vars) > 1) {
+    est_coxboost <- train_data[, c("OS.time", "OS", coxboost_vars)]
+    val_coxboost <- lapply(list_train_vali_Data, function(x) x[, c("OS.time", "OS", coxboost_vars)])
+
+    # CoxBoost + Enet (9)
+    for (alpha in seq(0.1, 0.9, 0.1)) {
+      local({
+      nm <- paste0("CoxBoost + Enet[\u03b1=", alpha, "]")
+      a <- alpha
+      tasks[[nm]] <<- function() {
+        fit <- train_enet(est_coxboost, coxboost_vars, a, seed)
+        rs <- calculate_risk_scores(val_coxboost, function(x) predict_enet(fit, x, coxboost_vars))
+        list(name = paste0("CoxBoost + Enet[\u03b1=", a, "]"), rs = rs, fit = fit)
+      }
+      })
     }
-    })
-  }
 
-  tasks[["CoxBoost + GBM"]] <- function() {
-    gbm <- train_gbm(est_dd, seed, gbm_worker_cores)
-    rs <- calculate_risk_scores(val_dd_list, function(x) predict_gbm(gbm$fit, gbm$best, x))
-    list(name = "CoxBoost + GBM", rs = rs, fit = gbm)
-  }
-
-  tasks[["CoxBoost + Lasso"]] <- function() {
-    fit <- train_lasso(est_dd, pre_var, seed)
-    rs <- calculate_risk_scores(val_dd_list, function(x) predict_lasso(fit, x, pre_var))
-    list(name = "CoxBoost + Lasso", rs = rs, fit = fit)
-  }
-
-  tasks[["CoxBoost + plsRcox"]] <- function() {
-    fit <- train_plsrcox(est_dd, pre_var, seed)
-    rs <- calculate_risk_scores(val_dd_list, function(x) predict_plsrcox(fit, x))
-    list(name = "CoxBoost + plsRcox", rs = rs, fit = fit)
-  }
-
-  tasks[["CoxBoost + Ridge"]] <- function() {
-    fit <- train_ridge(est_dd, pre_var, seed)
-    rs <- calculate_risk_scores(val_dd_list, function(x) predict_ridge(fit, x, pre_var))
-    list(name = "CoxBoost + Ridge", rs = rs, fit = fit)
-  }
-
-  # CoxBoost + StepCox (3)
-  for (dir in c("both", "backward", "forward")) {
-    local({
-    nm <- paste0("CoxBoost + StepCox[", dir, "]")
-    d <- dir
-    tasks[[nm]] <<- function() {
-      fit <- train_stepcox(est_dd, d)
-      rs <- calculate_risk_scores(val_dd_list, function(x) predict_stepcox(fit, x))
-      list(name = paste0("CoxBoost + StepCox[", d, "]"), rs = rs, fit = fit)
+    tasks[["CoxBoost + GBM"]] <- function() {
+      gbm <- train_gbm(est_coxboost, seed, gbm_worker_cores)
+      rs <- calculate_risk_scores(val_coxboost, function(x) predict_gbm(gbm$fit, gbm$best, x))
+      list(name = "CoxBoost + GBM", rs = rs, fit = gbm)
     }
-    })
+
+    tasks[["CoxBoost + Lasso"]] <- function() {
+      fit <- train_lasso(est_coxboost, coxboost_vars, seed)
+      rs <- calculate_risk_scores(val_coxboost, function(x) predict_lasso(fit, x, coxboost_vars))
+      list(name = "CoxBoost + Lasso", rs = rs, fit = fit)
+    }
+
+    tasks[["CoxBoost + plsRcox"]] <- function() {
+      fit <- train_plsrcox(est_coxboost, coxboost_vars, seed)
+      rs <- calculate_risk_scores(val_coxboost, function(x) predict_plsrcox(fit, x))
+      list(name = "CoxBoost + plsRcox", rs = rs, fit = fit)
+    }
+
+    tasks[["CoxBoost + Ridge"]] <- function() {
+      fit <- train_ridge(est_coxboost, coxboost_vars, seed)
+      rs <- calculate_risk_scores(val_coxboost, function(x) predict_ridge(fit, x, coxboost_vars))
+      list(name = "CoxBoost + Ridge", rs = rs, fit = fit)
+    }
+
+    # CoxBoost + StepCox (3)
+    for (dir in c("both", "backward", "forward")) {
+      local({
+      nm <- paste0("CoxBoost + StepCox[", dir, "]")
+      d <- dir
+      tasks[[nm]] <<- function() {
+        fit <- train_stepcox(est_coxboost, d)
+        rs <- calculate_risk_scores(val_coxboost, function(x) predict_stepcox(fit, x))
+        list(name = paste0("CoxBoost + StepCox[", d, "]"), rs = rs, fit = fit)
+      }
+      })
+    }
+
+    tasks[["CoxBoost + SuperPC"]] <- function() {
+      spc <- train_superpc(est_coxboost, seed)
+      rs <- lapply(val_coxboost, function(x) cbind(x[, 1:2], RS = predict_superpc_model(spc, est_coxboost, x)))
+      list(name = "CoxBoost + SuperPC", rs = rs, fit = spc)
+    }
+
+    tasks[["CoxBoost + survival-SVM"]] <- function() {
+      fit <- train_survivalsvm(est_coxboost, seed)
+      rs <- calculate_risk_scores(val_coxboost, function(x) predict_survivalsvm(fit, x))
+      list(name = "CoxBoost + survival-SVM", rs = rs, fit = fit)
+    }
+  } else {
+    warning("The number of selected candidate genes by CoxBoost is less than 2")
   }
 
-  tasks[["CoxBoost + SuperPC"]] <- function() {
-    spc <- train_superpc(est_dd, seed)
-    rs <- lapply(val_dd_list, function(x) cbind(x[, 1:2], RS = predict_superpc(spc$fit, spc$cv_fit, est_dd, x)))
-    list(name = "CoxBoost + SuperPC", rs = rs, fit = spc)
-  }
-
-  tasks[["CoxBoost + survival-SVM"]] <- function() {
-    fit <- train_survivalsvm(est_dd, seed)
-    rs <- calculate_risk_scores(val_dd_list, function(x) predict_survivalsvm(fit, x))
-    list(name = "CoxBoost + survival-SVM", rs = rs, fit = fit)
-  }
-
-  # ---- Phase 2E: Lasso combinations (9) ----
+  # ---- Phase 2E: Lasso combinations (117-grid omits elastic-net and ridge after Lasso selection) ----
   if (length(lasso_vars) > 1) {
     est_lasso <- train_data[, c("OS.time", "OS", lasso_vars)]
     val_lasso <- lapply(list_train_vali_Data, function(x) x[, c("OS.time", "OS", lasso_vars)])
 
-    fit_lasso_rsf <- randomForestSRC::rfsrc(
-      Surv(OS.time, OS) ~ .,
-      data = est_lasso,
-      ntree = 1000,
-      nodesize = rf_nodesize,
-      splitrule = "logrank",
-      seed = seed
-    )
-    rs_lasso_rsf <- calculate_risk_scores(val_lasso, function(x) predict(fit_lasso_rsf, newdata = x)$predicted)
+    fit_lasso_rsf <- train_rsf(est_lasso, rf_nodesize, seed)
+    rs_lasso_rsf <- calculate_risk_scores(val_lasso, function(x) predict_rsf(fit_lasso_rsf, x))
     tmp <- add_model_result(
       result,
       ml.res,
@@ -461,7 +491,7 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
 
     tasks[["Lasso + SuperPC"]] <- function() {
       spc <- train_superpc(est_lasso, seed)
-      rs <- lapply(val_lasso, function(x) cbind(x[, 1:2], RS = predict_superpc(spc$fit, spc$cv_fit, est_lasso, x)))
+      rs <- lapply(val_lasso, function(x) cbind(x[, 1:2], RS = predict_superpc_model(spc, est_lasso, x)))
       list(name = "Lasso + SuperPC", rs = rs, fit = spc)
     }
 
@@ -481,13 +511,35 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
   pb <- txtProgressBar(min = 0, max = n_tasks, style = 3, width = 60)
   batch_size <- max(as.integer(cores) * 2L, 8L)
   task_names <- names(tasks)
-  task_batches <- split(task_names, ceiling(seq_along(task_names) / batch_size))
+  task_split <- split_gbm_tasks_for_fork_safety(task_names)
   results <- vector("list", length(task_names))
   names(results) <- task_names
   completed_tasks <- 0L
   worker_result_dir <- tempfile("ml-parallel-results-")
   dir.create(worker_result_dir, recursive = TRUE, showWarnings = FALSE)
   on.exit(unlink(worker_result_dir, recursive = TRUE, force = TRUE), add = TRUE)
+
+  if (length(task_split$sequential) > 0) {
+    cat(sprintf(
+      "\n  Running %d GBM task(s) sequentially for fork safety: %s\n",
+      length(task_split$sequential),
+      paste(task_split$sequential, collapse = " | ")
+    ))
+    for (nm in task_split$sequential) {
+      cat(sprintf("    [Task start] %s\n", nm))
+      results[[nm]] <- execute_model_task(nm, tasks, thread_env)
+      cat(sprintf("    [Task done] %s\n", nm))
+      completed_tasks <- completed_tasks + 1L
+      setTxtProgressBar(pb, completed_tasks)
+    }
+    cat("\n  Sequential GBM tasks complete\n")
+  }
+
+  task_batches <- if (length(task_split$parallel) > 0) {
+    split(task_split$parallel, ceiling(seq_along(task_split$parallel) / batch_size))
+  } else {
+    list()
+  }
 
   for (batch_idx in seq_along(task_batches)) {
     batch <- task_batches[[batch_idx]]
@@ -501,16 +553,9 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
     batch_results <- parallel::mclapply(
       batch,
       function(nm) {
-        do.call(Sys.setenv, as.list(thread_env))
         cat(sprintf("    [Task start] %s\n", nm))
 
-        res <- NULL
-        invisible(utils::capture.output({
-          res <- tryCatch(
-            suppressPackageStartupMessages(suppressMessages(tasks[[nm]]())),
-            error = function(e) list(name = nm, error = conditionMessage(e))
-          )
-        }))
+        res <- execute_model_task(nm, tasks, thread_env)
         out_file <- tempfile(
           pattern = paste0("task-", gsub("[^A-Za-z0-9]+", "-", nm), "-"),
           tmpdir = worker_result_dir,
@@ -527,8 +572,17 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
 
     names(batch_results) <- batch
     for (nm in batch) {
-      result_file <- batch_results[[nm]]$file
-      results[[nm]] <- readRDS(result_file)
+      batch_result <- batch_results[[nm]]
+      if (inherits(batch_result, "try-error") ||
+          is.null(batch_result$file) ||
+          !file.exists(batch_result$file)) {
+        results[[nm]] <- list(
+          name = nm,
+          error = paste0("worker did not produce a result file for task '", nm, "'")
+        )
+        next
+      }
+      results[[nm]] <- readRDS(batch_result$file)
     }
     completed_tasks <- completed_tasks + length(batch)
     setTxtProgressBar(pb, completed_tasks)
@@ -542,12 +596,10 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
   # ============================================
   cat("\n  Combining results...\n")
 
+  assert_no_parallel_task_errors(results)
+
   for (nm in names(results)) {
     r <- results[[nm]]
-    if (!is.null(r$error)) {
-      cat(sprintf("  [WARN] %s: %s\n", nm, r$error))
-      next
-    }
 
     rs <- return_id_to_rs(r$rs, list_train_vali_Data)
     cc <- calculate_cindex_result(rs, r$name)
@@ -558,10 +610,32 @@ run_all_algorithms_117_parallel <- function(est_dd, train_data, val_dd_list,
 
   cat(sprintf("\n=== Complete: %d models built ===\n", length(ml.res)))
 
+  warn_if_all_mode_incomplete(
+    length(ml.res),
+    expected = all_mode_expected,
+    context = "Parallel all-mode"
+  )
+
   return(list(
     Cindex.res = result,
     ml.res = ml.res,
     riskscore = riskscore,
     Sig.genes = pre_var
   ))
+}
+
+#' Stop when parallel workers report errors
+#' @keywords internal
+assert_no_parallel_task_errors <- function(results) {
+  task_errors <- vapply(results, function(x) {
+    if (!is.null(x$error)) x$error else NA_character_
+  }, character(1))
+  task_errors <- task_errors[!is.na(task_errors)]
+  if (length(task_errors) > 0) {
+    stop(paste0(
+      "Parallel model tasks failed: ",
+      paste(paste0(names(task_errors), ": ", task_errors), collapse = "; ")
+    ), call. = FALSE)
+  }
+  invisible(TRUE)
 }

@@ -1,8 +1,41 @@
-shared_smoke_path <- "/tmp/iklSurvML-audit/shared-smoke-50x20-seed101.rds"
+make_b2_smoke_fixture <- function(seed = 101, n_train = 50, n_val = 30, p = 20) {
+  set.seed(seed)
+  genes <- paste0("Gene", seq_len(p))
+
+  make_matrix <- function(n, prefix) {
+    signal <- stats::rnorm(n)
+    expr <- vapply(seq_len(p), function(j) {
+      signal * cos(j / 4) + stats::rnorm(n, sd = 0.45 + j / 100)
+    }, numeric(n))
+    colnames(expr) <- genes
+    linpred <- 0.8 * expr[, 1] - 0.6 * expr[, 2] + 0.5 * expr[, 3]
+    data.frame(
+      ID = paste0(prefix, seq_len(n)),
+      OS.time = pmax(30, round(exp(8 - linpred + stats::rnorm(n, sd = 0.35)), 3)),
+      OS = as.integer(stats::runif(n) < stats::plogis(linpred)),
+      expr,
+      check.names = FALSE
+    )
+  }
+
+  list(
+    train_data = make_matrix(n_train, "S"),
+    list_train_vali_Data = list(validation = make_matrix(n_val, "V")),
+    candidate_genes = genes,
+    seed = 5201314,
+    nodesize = 5,
+    meta = list(samples_train = n_train, samples_val = n_val, genes = p, generator_seed = seed)
+  )
+}
+
+shared_smoke_path <- Sys.getenv("IKLSURVML_B2_FIXTURE", unset = NA_character_)
 
 load_shared_smoke_inputs <- function() {
-  skip_if_not(file.exists(shared_smoke_path), paste("missing fixture:", shared_smoke_path))
-  dataset <- readRDS(shared_smoke_path)
+  dataset <- if (!is.na(shared_smoke_path) && nzchar(shared_smoke_path) && file.exists(shared_smoke_path)) {
+    readRDS(shared_smoke_path)
+  } else {
+    make_b2_smoke_fixture()
+  }
 
   train_data <- dataset$train_data
   list_train_vali_Data <- dataset$list_train_vali_Data
@@ -36,11 +69,15 @@ test_that("train_survivalsvm falls back for the shared Lasso subspace", {
   expect_s3_class(fit, "survivalsvm")
 })
 
-test_that("parallel all-mode keeps B2 materialized models and reaches 117", {
+test_that("parallel all-mode keeps B2 materialized models and reaches the fixed 117-grid", {
   skip_on_os("windows")
   skip_if_not(
     identical(Sys.getenv("RUN_LONG_B2_REGRESSION"), "true"),
     "long-running integration regression covered by scripts/run_b2_retest_12c.R"
+  )
+  skip_if(
+    is.na(shared_smoke_path) || !nzchar(shared_smoke_path) || !file.exists(shared_smoke_path),
+    "set IKLSURVML_B2_FIXTURE to run the full 117-model B2 regression"
   )
   inputs <- load_shared_smoke_inputs()
 
@@ -65,6 +102,10 @@ test_that("parallel all-mode keeps B2 materialized models and reaches 117", {
     "StepCox[both] + RSF",
     "StepCox[backward] + RSF",
     "StepCox[forward] + RSF",
+    "RSF + CoxBoost",
     "Lasso + survival-SVM"
   ) %in% model_names))
+  expect_false("CoxBoost + RSF" %in% model_names)
+  expect_false("Lasso + Enet[\u03b1=0.1]" %in% model_names)
+  expect_false("Lasso + Ridge" %in% model_names)
 })

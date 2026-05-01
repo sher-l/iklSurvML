@@ -1,18 +1,28 @@
-# Optimized Main Function - Complete 117 Combinations
+# Optimized Main Function - Fixed All-Mode Combinations
 #
 # Key optimization: Train feature selectors once and reuse for all combinations
-# Matches original Mime package exactly: 117 model combinations
+# Fixed Mime-style all-mode grid: 117 model combinations
 
-#' Optimized version of ML.Dev.Prog.Sig with caching - Complete 117 combinations
+#' Optimized version of ML.Dev.Prog.Sig with caching
 #'
 #' @description
 #' Same functionality as ML.Dev.Prog.Sig but with significant performance improvements:
 #' - Feature selection algorithms (RSF, StepCox, CoxBoost, Lasso) trained once and reused
-#' - All 117 combinations as per the original Mime paper
-#' - NEW: Parallel execution for 117 combinations (Linux only, uses fork)
+#' - Fixed 117 all-mode combinations
+#' - Optional forked parallel execution for all-mode combinations (Linux/macOS fork)
 #'
 #' @inheritParams ML.Dev.Prog.Sig
-#' @param use_parallel Enable parallel processing: TRUE = 12 cores fork (Linux), FALSE = sequential
+#' @param use_parallel Enable forked parallel processing for mode="all".
+#'   Defaults to FALSE because sequential all-mode is the safest cross-platform
+#'   path; TRUE keeps GBM tasks in the parent process for fork safety.
+#' @param feature_alignment How candidate genes are aligned across cohorts.
+#'   "strict" (default) requires all candidate genes to be present in every
+#'   training/validation cohort. "intersection" preserves the legacy behavior
+#'   of training only on genes shared by all cohorts, with a warning for drops.
+#' @param allow_partial Logical. For `mode = "all"`, whether to return a
+#'   partial model grid when some first-stage selectors or backend models fail.
+#'   Defaults to `FALSE` so incomplete all-mode runs fail explicitly instead of
+#'   looking complete.
 #' @return Same result structure as ML.Dev.Prog.Sig
 #' @export
 ML.Dev.Prog.Sig.Fast <- function(train_data,
@@ -26,54 +36,91 @@ ML.Dev.Prog.Sig.Fast <- function(train_data,
                                   direction_for_stepcox = NULL,
                                   double_ml1 = NULL,
                                   double_ml2 = NULL,
-                                  nodesize = NULL,
-                                  seed = NULL,
-                                  cores_for_parallel = 12,
-                                  use_parallel = TRUE) {
+	                                  nodesize = NULL,
+	                                  seed = NULL,
+	                                  cores_for_parallel = 12,
+	                                  use_parallel = FALSE,
+	                                  feature_alignment = c("strict", "intersection"),
+	                                  model_grid = "117",
+	                                  allow_partial = FALSE) {
 
   # ---- Set default parameters ----
   if (is.null(alpha_for_Enet)) alpha_for_Enet <- 0.1
   if (is.null(direction_for_stepcox)) direction_for_stepcox <- "both"
   if (is.null(unicox_p_cutoff)) unicox_p_cutoff <- 0.05
   if (is.null(unicox.filter.for.candi)) unicox.filter.for.candi <- TRUE
+  if (is.null(seed)) {
+    seed <- 5201314
+    message("Using default seed: 5201314")
+  }
 
   rf_nodesize <- if(is.null(nodesize)) 5 else nodesize
+  params <- validate_survival_ml_params(
+    mode = mode,
+    single_ml = single_ml,
+    double_ml1 = double_ml1,
+    double_ml2 = double_ml2,
+    alpha_for_enet = alpha_for_Enet,
+    direction_for_stepcox = direction_for_stepcox
+  )
+  single_ml <- params$single_ml
+  double_ml1 <- params$double_ml1
+  double_ml2 <- params$double_ml2
 
-  # ---- Data preprocessing (same as original) ----
-  list_train_vali_Data <- lapply(list_train_vali_Data, function(x) {
-    colnames(x) <- gsub("-", ".", colnames(x))
-    x
-  })
-  candidate_genes <- gsub("-", ".", candidate_genes)
-  colnames(train_data) <- gsub("-", ".", colnames(train_data))
+	  feature_alignment <- match.arg(feature_alignment)
+	  model_grid <- normalize_all_mode_model_grid(model_grid)
+	  all_mode_expected <- all_mode_model_grid_size(model_grid)
 
-  common_feature <- c("ID", "OS.time", "OS", candidate_genes)
-  for (i in names(list_train_vali_Data)) {
-    common_feature <- intersect(common_feature, colnames(list_train_vali_Data[[i]]))
+	  # ---- Data preprocessing (same as original) ----
+  data_names <- names(list_train_vali_Data)
+  if (is.null(data_names)) {
+    data_names <- as.character(seq_along(list_train_vali_Data))
   }
+  list_train_vali_Data <- lapply(data_names, function(nm) {
+    normalize_ml_data_columns(list_train_vali_Data[[nm]], paste0("Dataset '", nm, "'"))
+  })
+  names(list_train_vali_Data) <- data_names
+  candidate_genes <- normalize_ml_feature_names(candidate_genes)
+  train_data <- normalize_ml_data_columns(train_data, "Training data")
+
+	  common_feature <- resolve_survival_common_features(
+	    train_data = train_data,
+	    list_train_vali_Data = list_train_vali_Data,
+	    candidate_genes = candidate_genes,
+	    feature_alignment = feature_alignment
+	  )
 
   # Validate parameters
-  if (!(!is.na(rf_nodesize) && !is.na(seed) &&
-        mode %in% c("all", "single", "double") &&
-        identical(c("ID", "OS.time", "OS"), colnames(train_data)[1:3]) &&
-        length(candidate_genes) > 0 &&
-        length(common_feature) > 3)) {
-    stop(paste0("Invalid parameters or data format. Check: ",
-                "mode must be 'all'/'single'/'double', ",
-                "first 3 columns must be ID/OS.time/OS, ",
-                "candidate_genes must exist, ",
-                "common features must exist across all datasets"))
+  if (length(rf_nodesize) != 1 || is.na(rf_nodesize) ||
+      length(seed) != 1 || is.na(seed)) {
+    stop("nodesize and seed must be non-missing scalar values", call. = FALSE)
+  }
+  if (!identical(c("ID", "OS.time", "OS"), colnames(train_data)[1:3])) {
+    stop("first 3 columns of train_data must be ID, OS.time, OS", call. = FALSE)
+  }
+  if (length(candidate_genes) == 0 || length(common_feature) <= 3) {
+    stop("candidate_genes must exist across train_data and all validation datasets", call. = FALSE)
   }
 
-  # Preprocess data
-  list_train_vali_Data <- preprocess_data_list(list_train_vali_Data, common_feature)
-  train_data <- preprocess_train_data(train_data, common_feature)
+  # Learn preprocessing from training data only, then apply it to validation cohorts
+  preprocessed_train <- preprocess_train_data(train_data, common_feature, return_recipe = TRUE)
+  train_data <- preprocessed_train$data
+  preprocess_recipe <- preprocessed_train$recipe
+  list_train_vali_Data <- preprocess_data_list(
+    list_train_vali_Data,
+    common_feature,
+    recipe = preprocess_recipe
+  )
 
   # Univariate Cox filtering
   if (unicox.filter.for.candi) {
     cd.gene <- common_feature[-c(1:3)]
     cd.gene1 <- sig_unicox(gene_list = cd.gene, inputSet = train_data, unicox_pcutoff = unicox_p_cutoff)
     message(paste0("--- Unicox filtered genes: ", length(cd.gene1), " ---"))
+    if (length(cd.gene1) < 2) {
+      stop(paste0("Insufficient features after univariate Cox filtering: ",
+                  length(cd.gene1), ". Need at least 2 features for ML analysis."), call. = FALSE)
+    }
     common_feature <- c(common_feature[1:3], cd.gene1)
     train_data <- as.data.frame(train_data)[, common_feature]
   }
@@ -81,37 +128,81 @@ ML.Dev.Prog.Sig.Fast <- function(train_data,
   est_dd <- as.data.frame(train_data)[, common_feature[-1]]
   val_dd_list <- lapply(list_train_vali_Data, function(x) x[, common_feature[-1]])
   pre_var <- common_feature[-c(1:3)]
-
-  # ---- Run algorithms ----
-  if (mode == "all") {
-    if (use_parallel) {
-      # Use parallel version (Linux fork, 12 cores)
-      result <- run_all_algorithms_117_parallel(
-        est_dd, train_data, val_dd_list, list_train_vali_Data, pre_var,
-        rf_nodesize, seed, cores = cores_for_parallel
-      )
-    } else {
-      # Use sequential version
-      result <- run_all_algorithms_117(
-        est_dd, train_data, val_dd_list, list_train_vali_Data, pre_var,
-        rf_nodesize, seed, cores_for_parallel
-      )
-    }
-  } else if (mode == "single") {
-    result <- run_single_algorithm(
-      est_dd, train_data, val_dd_list, list_train_vali_Data, pre_var,
-      single_ml, rf_nodesize, seed, alpha_for_Enet, direction_for_stepcox, cores_for_parallel
-    )
-  } else if (mode == "double") {
-    result <- run_double_algorithm_optimized(
-      est_dd, train_data, val_dd_list, list_train_vali_Data, pre_var,
-      double_ml1, double_ml2, rf_nodesize, seed, alpha_for_Enet,
-      direction_for_stepcox, cores_for_parallel
+  model_warnings <- character()
+  capture_model_warnings <- function(expr) {
+    withCallingHandlers(
+      expr,
+      warning = function(w) {
+        model_warnings <<- c(model_warnings, conditionMessage(w))
+      }
     )
   }
 
-  message("--- Analysis completed ---")
-  return(result)
+  # ---- Run algorithms ----
+  if (mode == "all") {
+	    result <- capture_model_warnings({
+	      fast_runner <- if (use_parallel) {
+	        function() run_all_algorithms_128_parallel(
+	          est_dd, train_data, val_dd_list, list_train_vali_Data, pre_var,
+	          rf_nodesize, seed, cores = cores_for_parallel, model_grid = model_grid
+	        )
+	      } else {
+	        function() run_all_algorithms_128(
+	          est_dd, train_data, val_dd_list, list_train_vali_Data, pre_var,
+	          rf_nodesize, seed, cores_for_parallel, model_grid = model_grid
+	        )
+	      }
+
+      tryCatch(
+        fast_runner(),
+        error = function(e) {
+          warning(paste0(
+            "Fast all-mode failed before returning model results; falling back ",
+            "to the resilient all-mode runner. Original error: ",
+            conditionMessage(e)
+          ), call. = FALSE)
+          run_all_algorithms(
+            est_dd = est_dd,
+            train_data = train_data,
+            val_dd_list = val_dd_list,
+            list_train_vali_Data = list_train_vali_Data,
+	            pre_var = pre_var,
+	            rf_nodesize = rf_nodesize,
+	            seed = seed,
+	            cores_for_parallel = cores_for_parallel,
+	            model_grid = model_grid
+	          )
+	        }
+	      )
+    })
+  } else if (mode == "single") {
+    result <- capture_model_warnings(run_single_algorithm(
+      est_dd, train_data, val_dd_list, list_train_vali_Data, pre_var,
+      single_ml, rf_nodesize, seed, alpha_for_Enet, direction_for_stepcox, cores_for_parallel
+    ))
+	  } else if (mode == "double") {
+	    result <- capture_model_warnings(run_double_algorithm_optimized(
+	      est_dd, train_data, val_dd_list, list_train_vali_Data, pre_var,
+	      double_ml1, double_ml2, rf_nodesize, seed, alpha_for_Enet,
+	      direction_for_stepcox, cores_for_parallel
+	    ))
+	  }
+
+	  if (identical(mode, "all")) {
+		    assert_complete_all_mode_result(
+		      result,
+		      expected = all_mode_expected,
+		      allow_partial = allow_partial,
+		      context = "ML.Dev.Prog.Sig.Fast all-mode"
+		    )
+	  }
+	
+	  message("--- Analysis completed ---")
+  if (length(model_warnings) > 0L) {
+    result$Model.warnings <- unique(model_warnings)
+  }
+  result$Preprocess.recipe <- preprocess_recipe
+  return(attach_survival_model_info(result))
 }
 
 #' Helper function to add model result
@@ -125,11 +216,16 @@ add_model_result <- function(result, ml.res, riskscore, rs, fit, model_name, lis
   list(result = result, ml.res = ml.res, riskscore = riskscore)
 }
 
-#' Complete 117 combinations - Optimized
+#' Fixed 117 all-mode combinations - Optimized
 #' @keywords internal
-run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
+run_all_algorithms_128 <- function(est_dd, train_data, val_dd_list,
                                     list_train_vali_Data, pre_var,
-                                    rf_nodesize, seed, cores_for_parallel) {
+                                    rf_nodesize, seed, cores_for_parallel,
+                                    model_grid = "117") {
+  model_grid <- normalize_all_mode_model_grid(model_grid)
+  all_mode_expected <- all_mode_model_grid_size(model_grid)
+  stepcox_selector_dirs <- all_mode_stepcox_selector_dirs(model_grid)
+
   result <- data.frame()
   ml.res <- list()
   riskscore <- list()
@@ -140,19 +236,7 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
   message("--- Phase 1: Training feature selectors (RSF, StepCox, CoxBoost, Lasso) ---")
 
   # 1. RSF - train once, get selected vars
-  set.seed(seed)
-  Surv <- survival::Surv  # Fix scoping
-  rsf_fit <- randomForestSRC::rfsrc(
-    Surv(OS.time, OS) ~ .,
-    data = est_dd,
-    ntree = 1000,
-    nodesize = rf_nodesize,
-    splitrule = "logrank",
-    importance = TRUE,
-    proximity = TRUE,
-    forest = TRUE,
-    seed = seed
-  )
+  rsf_fit <- train_rsf(est_dd, rf_nodesize, seed)
   set.seed(seed)
   rsf_vars <- randomForestSRC::var.select(object = rsf_fit, conservative = "high")$topvars
   message(paste0("  RSF selected ", length(rsf_vars), " variables"))
@@ -168,8 +252,8 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
 
   # 3. CoxBoost - train once
   coxboost_fit <- train_coxboost(est_dd, seed)
-  # CoxBoost doesn't have explicit feature selection, use all features
-  coxboost_vars <- pre_var
+  coxboost_vars <- get_coxboost_selected_vars(coxboost_fit)
+  message(paste0("  CoxBoost selected ", length(coxboost_vars), " variables"))
 
   # 4. Lasso - train once
   lasso_fit <- train_lasso(est_dd, pre_var, seed)
@@ -208,14 +292,13 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
   result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
   # Other singles (5): plsRcox, SuperPC, GBM, survival-SVM, Ridge
-  # Note: Original code uses "survival - SVM" for single model (with spaces)
   fit <- train_plsrcox(est_dd, pre_var, seed)
   rs <- calculate_risk_scores(val_dd_list, function(x) predict_plsrcox(fit, x))
   tmp <- add_model_result(result, ml.res, riskscore, rs, fit, "plsRcox", list_train_vali_Data)
   result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
   superpc_res <- train_superpc(est_dd, seed)
-  rs <- lapply(val_dd_list, function(x) cbind(x[, 1:2], RS = predict_superpc(superpc_res$fit, superpc_res$cv_fit, est_dd, x)))
+  rs <- lapply(val_dd_list, function(x) cbind(x[, 1:2], RS = predict_superpc_model(superpc_res, est_dd, x)))
   tmp <- add_model_result(result, ml.res, riskscore, rs, superpc_res, "SuperPC", list_train_vali_Data)
   result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
@@ -226,7 +309,7 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
 
   fit <- train_survivalsvm(est_dd, seed)
   rs <- calculate_risk_scores(val_dd_list, function(x) predict_survivalsvm(fit, x))
-  tmp <- add_model_result(result, ml.res, riskscore, rs, fit, "survival - SVM", list_train_vali_Data)
+  tmp <- add_model_result(result, ml.res, riskscore, rs, fit, "survival-SVM", list_train_vali_Data)
   result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
   fit <- train_ridge(est_dd, pre_var, seed)
@@ -284,7 +367,7 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
     result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
     spc_r <- train_superpc(est_dd_rsf, seed)
-    rs <- lapply(val_dd_list_rsf, function(x) cbind(x[, 1:2], RS = predict_superpc(spc_r$fit, spc_r$cv_fit, est_dd_rsf, x)))
+    rs <- lapply(val_dd_list_rsf, function(x) cbind(x[, 1:2], RS = predict_superpc_model(spc_r, est_dd_rsf, x)))
     tmp <- add_model_result(result, ml.res, riskscore, rs, spc_r, "RSF + SuperPC", list_train_vali_Data)
     result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
@@ -303,11 +386,11 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
   }
 
   # ============================================
-  # PHASE 4: StepCox combinations (51 = 3 directions x 17)
+  # PHASE 4: StepCox combinations (117-grid includes forward as first-stage selector)
   # ============================================
-  message("--- Phase 4: StepCox combinations (51) ---")
+  message(paste0("--- Phase 4: StepCox combinations (", length(stepcox_selector_dirs) * 17L, ") ---"))
 
-  for (direction in c("both", "backward", "forward")) {
+  for (direction in stepcox_selector_dirs) {
     sc_vars <- stepcox_vars[[direction]]
     if (length(sc_vars) > 1) {
       est_dd_sc <- train_data[, c("OS.time", "OS", sc_vars)]
@@ -354,17 +437,14 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
       result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
       # StepCox + RSF
-      set.seed(seed)
-      Surv <- survival::Surv
-      fit <- randomForestSRC::rfsrc(Surv(OS.time, OS) ~ ., data = est_dd_sc, ntree = 1000,
-                                     nodesize = rf_nodesize, splitrule = "logrank", seed = seed)
-      rs <- calculate_risk_scores(val_dd_list_sc, function(x) predict(fit, newdata = x)$predicted)
+      fit <- train_rsf(est_dd_sc, rf_nodesize, seed)
+      rs <- calculate_risk_scores(val_dd_list_sc, function(x) predict_rsf(fit, x))
       tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0(prefix, " + RSF"), list_train_vali_Data)
       result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
       # StepCox + SuperPC
       spc_r <- train_superpc(est_dd_sc, seed)
-      rs <- lapply(val_dd_list_sc, function(x) cbind(x[, 1:2], RS = predict_superpc(spc_r$fit, spc_r$cv_fit, est_dd_sc, x)))
+      rs <- lapply(val_dd_list_sc, function(x) cbind(x[, 1:2], RS = predict_superpc_model(spc_r, est_dd_sc, x)))
       tmp <- add_model_result(result, ml.res, riskscore, rs, spc_r, paste0(prefix, " + SuperPC"), list_train_vali_Data)
       result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
@@ -377,64 +457,71 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
   }
 
   # ============================================
-  # PHASE 5: CoxBoost combinations (19)
+  # PHASE 5: CoxBoost combinations (18; 117-grid omits CoxBoost + RSF)
   # ============================================
-  message("--- Phase 5: CoxBoost combinations (19) ---")
+  message("--- Phase 5: CoxBoost combinations (18) ---")
 
-  # CoxBoost + Enet (9)
-  for (alpha in seq(0.1, 0.9, 0.1)) {
-    fit <- train_enet(est_dd, pre_var, alpha, seed)
-    rs <- calculate_risk_scores(val_dd_list, function(x) predict_enet(fit, x, pre_var))
-    tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0("CoxBoost + Enet[\u03b1=", alpha, "]"), list_train_vali_Data)
+  if (length(coxboost_vars) > 1) {
+    est_dd_coxboost <- train_data[, c("OS.time", "OS", coxboost_vars)]
+    val_dd_list_coxboost <- lapply(list_train_vali_Data, function(x) x[, c("OS.time", "OS", coxboost_vars)])
+
+    # CoxBoost + Enet (9)
+    for (alpha in seq(0.1, 0.9, 0.1)) {
+      fit <- train_enet(est_dd_coxboost, coxboost_vars, alpha, seed)
+      rs <- calculate_risk_scores(val_dd_list_coxboost, function(x) predict_enet(fit, x, coxboost_vars))
+      tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0("CoxBoost + Enet[\u03b1=", alpha, "]"), list_train_vali_Data)
+      result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
+    }
+
+    # CoxBoost + GBM
+    gbm_r <- train_gbm(est_dd_coxboost, seed, cores_for_parallel)
+    rs <- calculate_risk_scores(val_dd_list_coxboost, function(x) predict_gbm(gbm_r$fit, gbm_r$best, x))
+    tmp <- add_model_result(result, ml.res, riskscore, rs, gbm_r, "CoxBoost + GBM", list_train_vali_Data)
     result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
+
+    # CoxBoost + Lasso
+    fit <- train_lasso(est_dd_coxboost, coxboost_vars, seed)
+    rs <- calculate_risk_scores(val_dd_list_coxboost, function(x) predict_lasso(fit, x, coxboost_vars))
+    tmp <- add_model_result(result, ml.res, riskscore, rs, fit, "CoxBoost + Lasso", list_train_vali_Data)
+    result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
+
+    # CoxBoost + plsRcox
+    fit <- train_plsrcox(est_dd_coxboost, coxboost_vars, seed)
+    rs <- calculate_risk_scores(val_dd_list_coxboost, function(x) predict_plsrcox(fit, x))
+    tmp <- add_model_result(result, ml.res, riskscore, rs, fit, "CoxBoost + plsRcox", list_train_vali_Data)
+    result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
+
+    # CoxBoost + Ridge
+    fit <- train_ridge(est_dd_coxboost, coxboost_vars, seed)
+    rs <- calculate_risk_scores(val_dd_list_coxboost, function(x) predict_ridge(fit, x, coxboost_vars))
+    tmp <- add_model_result(result, ml.res, riskscore, rs, fit, "CoxBoost + Ridge", list_train_vali_Data)
+    result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
+
+    # CoxBoost + StepCox (3 directions)
+    for (direction in c("both", "backward", "forward")) {
+      fit <- train_stepcox(est_dd_coxboost, direction)
+      rs <- calculate_risk_scores(val_dd_list_coxboost, function(x) predict_stepcox(fit, x))
+      tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0("CoxBoost + StepCox[", direction, "]"), list_train_vali_Data)
+      result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
+    }
+
+    # CoxBoost + SuperPC
+    spc_r <- train_superpc(est_dd_coxboost, seed)
+    rs <- lapply(val_dd_list_coxboost, function(x) cbind(x[, 1:2], RS = predict_superpc_model(spc_r, est_dd_coxboost, x)))
+    tmp <- add_model_result(result, ml.res, riskscore, rs, spc_r, "CoxBoost + SuperPC", list_train_vali_Data)
+    result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
+
+    # CoxBoost + survival-SVM
+    fit <- train_survivalsvm(est_dd_coxboost, seed)
+    rs <- calculate_risk_scores(val_dd_list_coxboost, function(x) predict_survivalsvm(fit, x))
+    tmp <- add_model_result(result, ml.res, riskscore, rs, fit, "CoxBoost + survival-SVM", list_train_vali_Data)
+    result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
+  } else {
+    warning("The number of selected candidate genes by CoxBoost is less than 2")
   }
 
-  # CoxBoost + GBM
-  gbm_r <- train_gbm(est_dd, seed, cores_for_parallel)
-  rs <- calculate_risk_scores(val_dd_list, function(x) predict_gbm(gbm_r$fit, gbm_r$best, x))
-  tmp <- add_model_result(result, ml.res, riskscore, rs, gbm_r, "CoxBoost + GBM", list_train_vali_Data)
-  result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
-
-  # CoxBoost + Lasso
-  fit <- train_lasso(est_dd, pre_var, seed)
-  rs <- calculate_risk_scores(val_dd_list, function(x) predict_lasso(fit, x, pre_var))
-  tmp <- add_model_result(result, ml.res, riskscore, rs, fit, "CoxBoost + Lasso", list_train_vali_Data)
-  result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
-
-  # CoxBoost + plsRcox
-  fit <- train_plsrcox(est_dd, pre_var, seed)
-  rs <- calculate_risk_scores(val_dd_list, function(x) predict_plsrcox(fit, x))
-  tmp <- add_model_result(result, ml.res, riskscore, rs, fit, "CoxBoost + plsRcox", list_train_vali_Data)
-  result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
-
-  # CoxBoost + Ridge
-  fit <- train_ridge(est_dd, pre_var, seed)
-  rs <- calculate_risk_scores(val_dd_list, function(x) predict_ridge(fit, x, pre_var))
-  tmp <- add_model_result(result, ml.res, riskscore, rs, fit, "CoxBoost + Ridge", list_train_vali_Data)
-  result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
-
-  # CoxBoost + StepCox (3 directions)
-  for (direction in c("both", "backward", "forward")) {
-    fit <- train_stepcox(est_dd, direction)
-    rs <- calculate_risk_scores(val_dd_list, function(x) predict_stepcox(fit, x))
-    tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0("CoxBoost + StepCox[", direction, "]"), list_train_vali_Data)
-    result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
-  }
-
-  # CoxBoost + SuperPC
-  spc_r <- train_superpc(est_dd, seed)
-  rs <- lapply(val_dd_list, function(x) cbind(x[, 1:2], RS = predict_superpc(spc_r$fit, spc_r$cv_fit, est_dd, x)))
-  tmp <- add_model_result(result, ml.res, riskscore, rs, spc_r, "CoxBoost + SuperPC", list_train_vali_Data)
-  result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
-
-  # CoxBoost + survival-SVM
-  fit <- train_survivalsvm(est_dd, seed)
-  rs <- calculate_risk_scores(val_dd_list, function(x) predict_survivalsvm(fit, x))
-  tmp <- add_model_result(result, ml.res, riskscore, rs, fit, "CoxBoost + survival-SVM", list_train_vali_Data)
-  result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
-
   # ============================================
-  # PHASE 6: Lasso combinations (9)
+  # PHASE 6: Lasso combinations (117-grid omits elastic-net and ridge after Lasso selection)
   # ============================================
   message("--- Phase 6: Lasso combinations (9) ---")
 
@@ -461,11 +548,8 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
     result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
     # Lasso + RSF
-    set.seed(seed)
-    Surv <- survival::Surv
-    fit <- randomForestSRC::rfsrc(Surv(OS.time, OS) ~ ., data = est_dd_lasso, ntree = 1000,
-                                   nodesize = rf_nodesize, splitrule = "logrank", seed = seed)
-    rs <- calculate_risk_scores(val_dd_list_lasso, function(x) predict(fit, newdata = x)$predicted)
+    fit <- train_rsf(est_dd_lasso, rf_nodesize, seed)
+    rs <- calculate_risk_scores(val_dd_list_lasso, function(x) predict_rsf(fit, x))
     tmp <- add_model_result(result, ml.res, riskscore, rs, fit, "Lasso + RSF", list_train_vali_Data)
     result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
@@ -479,7 +563,7 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
 
     # Lasso + SuperPC
     spc_r <- train_superpc(est_dd_lasso, seed)
-    rs <- lapply(val_dd_list_lasso, function(x) cbind(x[, 1:2], RS = predict_superpc(spc_r$fit, spc_r$cv_fit, est_dd_lasso, x)))
+    rs <- lapply(val_dd_list_lasso, function(x) cbind(x[, 1:2], RS = predict_superpc_model(spc_r, est_dd_lasso, x)))
     tmp <- add_model_result(result, ml.res, riskscore, rs, spc_r, "Lasso + SuperPC", list_train_vali_Data)
     result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
@@ -494,6 +578,7 @@ run_all_algorithms_117 <- function(est_dd, train_data, val_dd_list,
   # Summary
   # ============================================
   message(paste0("--- Total models: ", length(ml.res), " ---"))
+  warn_if_all_mode_incomplete(length(ml.res), expected = all_mode_expected, context = "All-mode")
 
   return(list(
     Cindex.res = result,
@@ -509,16 +594,15 @@ run_double_algorithm_optimized <- function(est_dd, train_data, val_dd_list,
                                             list_train_vali_Data, pre_var,
                                             double_ml1, double_ml2, rf_nodesize, seed,
                                             alpha_for_enet, direction_for_stepcox, cores_for_parallel) {
+  assert_no_survival_self_combination(double_ml1, double_ml2)
+
   result <- data.frame()
   ml.res <- list()
   riskscore <- list()
 
   # Get first algorithm's selected variables
   if (double_ml1 == "RSF") {
-    set.seed(seed)
-    Surv <- survival::Surv
-    fit1 <- randomForestSRC::rfsrc(Surv(OS.time, OS) ~ ., data = est_dd, ntree = 1000,
-                                    nodesize = rf_nodesize, splitrule = "logrank", seed = seed)
+    fit1 <- train_rsf(est_dd, rf_nodesize, seed)
     set.seed(seed)
     selected_vars <- randomForestSRC::var.select(object = fit1, conservative = "high")$topvars
   } else if (double_ml1 == "StepCox") {
@@ -527,7 +611,7 @@ run_double_algorithm_optimized <- function(est_dd, train_data, val_dd_list,
     double_ml1_display <- paste0("StepCox[", direction_for_stepcox, "]")
   } else if (double_ml1 == "CoxBoost") {
     fit1 <- train_coxboost(est_dd, seed)
-    selected_vars <- pre_var  # CoxBoost uses all features
+    selected_vars <- get_coxboost_selected_vars(fit1)
   } else if (double_ml1 == "Lasso") {
     fit1 <- train_lasso(est_dd, pre_var, seed)
     selected_vars <- get_lasso_selected_vars(fit1)
@@ -539,8 +623,10 @@ run_double_algorithm_optimized <- function(est_dd, train_data, val_dd_list,
   }
 
   if (length(selected_vars) <= 1) {
-    warning("First algorithm selected < 2 variables")
-    return(list(Cindex.res = result, ml.res = ml.res, riskscore = riskscore, Sig.genes = pre_var))
+    stop(
+      "The first-stage algorithm selected fewer than 2 variables; double-mode model was not fit.",
+      call. = FALSE
+    )
   }
 
   est_dd2 <- train_data[, c("OS.time", "OS", selected_vars)]
@@ -575,11 +661,8 @@ run_double_algorithm_optimized <- function(est_dd, train_data, val_dd_list,
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_ridge(fit2, x, selected_vars))
     model_name <- paste0(double_ml1_display, " + Ridge")
   } else if (double_ml2 == "RSF") {
-    set.seed(seed)
-    Surv <- survival::Surv
-    fit2 <- randomForestSRC::rfsrc(Surv(OS.time, OS) ~ ., data = est_dd2, ntree = 1000,
-                                    nodesize = rf_nodesize, splitrule = "logrank", seed = seed)
-    rs <- calculate_risk_scores(val_dd_list2, function(x) predict(fit2, newdata = x)$predicted)
+    fit2 <- train_rsf(est_dd2, rf_nodesize, seed)
+    rs <- calculate_risk_scores(val_dd_list2, function(x) predict_rsf(fit2, x))
     model_name <- paste0(double_ml1_display, " + RSF")
   } else if (double_ml2 == "StepCox") {
     fit2 <- train_stepcox(est_dd2, direction_for_stepcox)
@@ -589,7 +672,7 @@ run_double_algorithm_optimized <- function(est_dd, train_data, val_dd_list,
     spc_res <- train_superpc(est_dd2, seed)
     fit2 <- spc_res
     rs <- lapply(val_dd_list2, function(x) {
-      cbind(x[, 1:2], RS = predict_superpc(spc_res$fit, spc_res$cv_fit, est_dd2, x))
+      cbind(x[, 1:2], RS = predict_superpc_model(spc_res, est_dd2, x))
     })
     model_name <- paste0(double_ml1_display, " + SuperPC")
   } else if (double_ml2 == "survivalsvm") {

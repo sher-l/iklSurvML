@@ -1,6 +1,6 @@
 # iklSurvML
 
-> High-Performance Survival Machine Learning | 117 Algorithm Combinations | 100% Reproducible
+> High-Performance Survival Machine Learning | Fixed 117 Algorithm Combinations | 100% Reproducible
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![R](https://img.shields.io/badge/R-%3E%3D4.0-blue.svg)](https://www.r-project.org/)
@@ -21,7 +21,7 @@ When building survival prediction models, do you face these challenges?
 
 | Challenge | Solution |
 |-----------|----------|
-| Algorithm selection | Run 117 combinations at once, auto-select the best |
+| Algorithm selection | Run candidate combinations, then evaluate on a pre-specified validation strategy |
 | Slow performance | **~8x faster** (optimized code) + **12-core parallel** |
 | Non-reproducible | Fixed random seed, 100% reproducible results |
 
@@ -30,7 +30,7 @@ When building survival prediction models, do you face these challenges?
 ### 1. Comprehensive Algorithm Coverage
 
 ```
-10 Base Algorithms → 117 Combinations
+10 Base Algorithms → Fixed 117 All-Mode Combinations
 ├── Regularization: Lasso, Ridge, Elastic Net (9 α values)
 ├── Ensemble: Random Survival Forest, GBM, CoxBoost
 ├── Classical: Stepwise Cox (3 directions)
@@ -88,8 +88,14 @@ Key optimizations:
 | Mode | Description | Use Case |
 |------|-------------|----------|
 | `single` | Single algorithm | Algorithm already determined |
-| `double` | Two-algorithm combo | Feature selection + modeling |
-| `all` | All 117 combinations | Exploratory analysis |
+| `double` | Two distinct algorithms | Feature selection + modeling; self-combinations such as `Lasso + Lasso` or `StepCox + StepCox` are not supported |
+| `all` | Fixed 117 Mime-style combinations | Exploratory analysis |
+
+`mode = "all"` now requires the complete fixed 117-model Mime-style grid.
+`model_grid` is retained only for compatibility and must be `"117"` if set.
+If a weak dataset causes a first-stage selector or backend model to fail, the
+run stops with a clear message. Set `allow_partial = TRUE` only when you
+intentionally want to compare the successfully fitted subset.
 
 ## Installation
 
@@ -112,6 +118,22 @@ if (!requireNamespace("CoxBoost", quietly = TRUE))
 devtools::install_github("sher-l/iklSurvML")
 ```
 
+### Optional classification engines
+
+Survival modeling installs the required survival backends. Some classification
+helpers in `ML.Dev.Pred.Category.Sig()` use optional engines and are enabled
+only when their packages are installed:
+
+| Method | Extra package(s) |
+|--------|------------------|
+| `nb` | `klaR` |
+| `adaboost` | `fastAdaboost` |
+| `cancerclass` | `cancerclass`, `Biobase`, `pROC` |
+
+If you request one of these methods without its extra packages, iklSurvML fails
+early with a method-specific dependency message. Leaving `methods = NULL`
+automatically skips unavailable optional engines.
+
 ## Quick Start
 
 ### Basic Usage
@@ -119,7 +141,7 @@ devtools::install_github("sher-l/iklSurvML")
 ```r
 library(iklSurvML)
 
-# Run all 117 combinations
+# Run the fixed 117 all-mode combinations
 result <- ML.Dev.Prog.Sig(
   train_data = train_data,
   list_train_vali_Data = list_train_vali_Data,
@@ -129,14 +151,17 @@ result <- ML.Dev.Prog.Sig(
   seed = 12345
 )
 
-# View best model
-result$Cindex.res[which.max(result$Cindex.res$Cindex), ]
+
+# Inspect validation performance after pre-specifying the model-selection cohort.
+# Avoid choosing the final model from training rows or from repeated external-test looks.
+validation_cindex <- subset(result$Cindex.res, ID != "train")
+validation_cindex[order(validation_cindex$Cindex, decreasing = TRUE), ]
 ```
 
-### Fast Version with Parallel Execution
+### Fast Version with Optional Parallel Execution
 
 ```r
-# 12-core parallel execution for mode="all"
+# Sequential all-mode is the fork-safe default
 result_fast <- ML.Dev.Prog.Sig.Fast(
   train_data = train_data,
   list_train_vali_Data = list_train_vali_Data,
@@ -144,14 +169,15 @@ result_fast <- ML.Dev.Prog.Sig.Fast(
   mode = "all",
   nodesize = 5,
   seed = 12345,
-  use_parallel = TRUE,        # Enable parallel (default: TRUE)
+  use_parallel = FALSE,       # Default: FALSE (fork-safe)
   cores_for_parallel = 12     # Number of cores (default: 12)
 )
 
-# Sequential execution (if needed)
-result_seq <- ML.Dev.Prog.Sig.Fast(
+# Opt in to parallel execution on Linux/macOS when desired.
+# GBM tasks stay in the parent process to avoid fork-related crashes.
+result_parallel <- ML.Dev.Prog.Sig.Fast(
   ...,
-  use_parallel = FALSE
+  use_parallel = TRUE
 )
 ```
 
@@ -190,12 +216,12 @@ result_lasso <- ML.Dev.Prog.Sig(
 |------|-------|-------------|
 | Single models | 20 | Baseline comparisons |
 | RSF + X | 19 | Random forest feature selection |
-| StepCox + X | 51 | Classical statistics + ML |
-| CoxBoost + X | 18 | Boosting feature selection |
-| Lasso + X | 9 | Sparse feature selection |
-| **Total** | **117** | |
+| StepCox + X | 51 | Uses both/backward/forward as first-stage selectors |
+| CoxBoost + X | 18 | Keeps the Mime-style omission of CoxBoost + RSF; RSF + CoxBoost remains |
+| Lasso + X | 9 | Sparse feature selection; omits Enet/Ridge after Lasso selection |
+| **Total** | **117** | Fixed all-mode grid |
 
-**Recommendation:** Run `mode="all"` first, then select the best model by C-index.
+**Recommendation:** Pre-specify the validation/cohort split used for model comparison before running `mode="all"`; do not repeatedly pick the highest C-index on the final external test set.
 
 ## Parameters
 
@@ -210,7 +236,8 @@ result_lasso <- ML.Dev.Prog.Sig(
 | `unicox_p_cutoff` | numeric | 0.05 | p-value threshold |
 | `nodesize` | numeric | NULL | RSF node size (set to 5) |
 | `seed` | numeric | NULL | Random seed |
-| `use_parallel` | logical | TRUE | Enable parallel execution |
+| `model_grid` | character | "117" | Compatibility parameter; only "117" is supported for all-mode |
+| `use_parallel` | logical | FALSE | Enable forked parallel execution for non-GBM tasks |
 | `cores_for_parallel` | numeric | 12 | Number of CPU cores |
 
 ## Visualization
@@ -234,10 +261,10 @@ roc_vis(auc_result, model_name = "Enet[α=0.5]", year = 1)
 ### Q: Running too slow?
 
 ```r
-# Option 1: Use Fast version with parallel (recommended)
+# Option 1: Use Fast version with safe sequential all-mode (default)
 result <- ML.Dev.Prog.Sig.Fast(
   ...,
-  use_parallel = TRUE,
+  use_parallel = FALSE,
   cores_for_parallel = 12
 )
 
@@ -271,6 +298,7 @@ result <- ML.Dev.Prog.Sig(..., nodesize = 5, seed = 12345)
 Parallel execution uses `parallel::mclapply` (Linux/macOS fork).
 - Works on Linux and macOS
 - On Windows, falls back to sequential execution
+- GBM model fits are run in the parent process for fork safety
 
 ## Changelog
 
@@ -280,8 +308,11 @@ Parallel execution uses `parallel::mclapply` (Linux/macOS fork).
   - **HIGH**: StepCox direction parameter, CoxBoost combination coverage, tryCatch error handling
   - **MEDIUM**: input validation, SuperPC null checks, parallel Windows warning, etc.
   - **LOW**: message formatting, parameter documentation, default values
-- ✨ Lasso combinations now include Enet (9 α values) and Ridge as second algorithms
-- 🔢 Total algorithm combinations: 117
+- 🔧 Keep a fixed `model_grid = "117"` all-mode grid aligned with Mime-style 117 combinations
+- 🔧 CoxBoost combinations now use non-zero CoxBoost coefficients for first-stage feature selection
+- 🔧 C-index now evaluates risk-score ordering directly instead of refitting a Cox model on each validation cohort
+- 🧹 Remove the dead duplicate `R/IMPRES` source tree; keep only the packaged runtime copies under `inst/extdata` and remove their hard-coded legacy RNG seed
+- 🔢 Total all-mode algorithm combinations: fixed 117
 - 🧹 Remove duplicate validation blocks, clean up code structure
 
 ### v1.2.0
@@ -290,7 +321,7 @@ Parallel execution uses `parallel::mclapply` (Linux/macOS fork).
 - 🏷️ StepCox model names now include direction (e.g., `StepCox[both]`)
 
 ### v1.1.0
-- ✨ Add 12-core parallel execution for 117 combinations
+- ✨ Add 12-core parallel execution for all-mode combinations
 - ✅ 100% consistency with Mime package (10/10 algorithms)
 
 ## Citation
@@ -309,7 +340,7 @@ MIT License
 
 ## 简介
 
-iklSurvML 是专注于生存分析的机器学习工具包，提供 117 种算法组合，帮助研究者快速构建和筛选最优预测模型。
+iklSurvML 是专注于生存分析的机器学习工具包，固定提供 Mime 风格 117 种 all-mode 算法组合，帮助研究者快速构建和筛选最优预测模型。
 
 ## 核心特性
 
@@ -380,7 +411,7 @@ devtools::install_github("sher-l/iklSurvML")
 ```r
 library(iklSurvML)
 
-# 并行运行全部 117 种组合 (推荐)
+# 安全顺序运行固定 117 种组合
 result <- ML.Dev.Prog.Sig.Fast(
   train_data = train,
   list_train_vali_Data = list(train = train, val = validation),
@@ -388,21 +419,22 @@ result <- ML.Dev.Prog.Sig.Fast(
   mode = "all",
   nodesize = 5,
   seed = 12345,
-  use_parallel = TRUE,        # 启用并行 (默认开启)
+  use_parallel = FALSE,       # 默认关闭并行，更稳妥
   cores_for_parallel = 12     # CPU 核心数
 )
 
-# 查看最佳模型
-best_idx <- which.max(result$Cindex.res$Cindex)
-result$Cindex.res[best_idx, ]
+
+# 在预先指定的验证队列中查看表现；不要用训练集行或反复查看外部测试集来选最终模型
+validation_cindex <- subset(result$Cindex.res, ID != "train")
+validation_cindex[order(validation_cindex$Cindex, decreasing = TRUE), ]
 ```
 
 ## 使用建议
 
 1. **数据准备**：样本量 ≥100，基因数 ≥50
-2. **首选模式**：先用 `mode="all"` + 并行跑完全部组合
-3. **模型选择**：根据 C-index 选择最优模型
-4. **结果验证**：在多个独立验证集中确认稳定性
+2. **首选模式**：先用 `mode="all"` 跑完全部组合；需要加速时再显式开启并行
+3. **模型选择**：预先指定内部验证/调参策略；避免在训练集或最终外部测试集上反复挑选最高 C-index
+4. **结果验证**：锁定模型后，在多个独立验证集中只评估一次稳定性
 
 ## 支持的算法
 
@@ -421,15 +453,15 @@ result$Cindex.res[best_idx, ]
 
 **运行慢？**
 ```r
-# 使用 Fast 版本 + 并行
-result <- ML.Dev.Prog.Sig.Fast(..., use_parallel = TRUE, cores_for_parallel = 12)
+# 使用 Fast 版本；默认顺序执行更稳妥
+result <- ML.Dev.Prog.Sig.Fast(..., use_parallel = FALSE)
 ```
 
 **结果不一致？** 确保 `seed`、`nodesize` 参数相同
 
 **报错？** 记得设置 `nodesize = 5`
 
-**并行不生效？** 并行使用 Linux/macOS fork，Windows 会自动降级为顺序执行
+**并行不生效？** 并行使用 Linux/macOS fork，Windows 会自动降级为顺序执行；GBM 会留在主进程执行以避免 fork 崩溃
 
 ## 更新日志
 
@@ -439,8 +471,11 @@ result <- ML.Dev.Prog.Sig.Fast(..., use_parallel = TRUE, cores_for_parallel = 12
   - **高危**: StepCox 方向参数、CoxBoost 组合覆盖、tryCatch 错误处理
   - **中等**: 输入验证、SuperPC 空值检查、并行 Windows 警告 等
   - **低危**: 消息格式化、参数文档、默认值
-- ✨ Lasso 组合新增 Enet (9 个 α 值) 和 Ridge 作为第二算法
-- 🔢 算法组合总数: 117
+- 🔧 固定使用 `model_grid = "117"` 的 Mime 风格 all-mode 组合
+- 🔧 CoxBoost 组合作为一阶段时改为使用非零 CoxBoost 系数筛选特征
+- 🔧 C-index 改为直接评估风险分数排序，不再在每个验证集重新拟合 Cox 模型
+- 🧹 删除无效重复的 `R/IMPRES` 源码树；仅保留 `inst/extdata` 中当前运行会加载的副本，并移除其中写死的历史 RNG 种子
+- 🔢 all-mode 算法组合总数: 固定 117
 - 🧹 清除重复验证代码块，优化代码结构
 
 ### v1.2.0
