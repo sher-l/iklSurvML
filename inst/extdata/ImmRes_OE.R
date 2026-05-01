@@ -1,5 +1,4 @@
 get.OE.sc <- function(r, gene.sign = NULL, num.rounds = 1000, mat.return.flag = T) {
-  set.seed(1234)
   r$genes.mean <- rowMeans(r$tpm)
   r$zscores <- sweep(r$tpm, 1, r$genes.mean, FUN = "-")
   if (any(r$tpm < 0)) {
@@ -34,7 +33,6 @@ get.OE.sc <- function(r, gene.sign = NULL, num.rounds = 1000, mat.return.flag = 
 }
 
 get.OE.bulk <- function(r, gene.sign = NULL, num.rounds = 1000, full.flag = F) {
-  set.seed(1234)
   r$genes.mean <- rowMeans(r$tpm)
   r$zscores <- sweep(r$tpm, 1, r$genes.mean, FUN = "-")
   r$genes.dist <- r$genes.mean
@@ -161,7 +159,6 @@ find.cycling.cells <- function(r, cc.sig = NULL) {
 
 get.OE.bulk.specific.tpm <- function(r, gene.sign = NULL, num.rounds = 1000) {
   # Previous name: get.sign.scores.bulk
-  set.seed(1234)
   r$genes.mean <- rowMeans(r$tpm)
   r$zscores <- sweep(r$tpm, 1, r$genes.mean, FUN = "-")
   r$genes.dist <- r$genes.mean

@@ -1,6 +1,9 @@
 master.code <- function() {
   rm(list = ls())
-  source("ImmRes_source.R")
+  sys.source(
+    system.file("extdata", "ImmRes_source.R", package = "iklSurvML", mustWork = TRUE),
+    envir = environment()
+  )
   ######################################################################################
   print("1. Generating de-novo cell-type signatures.")
   # The code is provided in "ImmRes1_denovoCellTypeSig.R"
@@ -55,7 +58,7 @@ master.code <- function() {
   ######################################################################################
   print("7. Exploring the impact of CDK4/6 inhibition on melanoma cells.")
   print("See the interactive data and plots in the single-cell portal")
-  print("To login use the email account icr.review1@gmail.com, password icrreview2.")
+  print("If access is required, request current portal credentials from the data owner.")
   sc.url <- "https://portals.broadinstitute.org/single_cell/study/melanoma-immunotherapy-resistance#study-visualize"
   browseURL(sc.url, browser = getOption("browser"), encodeIfNeeded = FALSE)
 

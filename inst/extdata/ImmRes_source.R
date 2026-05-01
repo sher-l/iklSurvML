@@ -1,23 +1,48 @@
-# library(scde)
-library(matrixStats)
-library(plyr)
-library(ppcor)
-library(survival)
-library(ROCR)
-library(Hmisc)
-library(rms)
-library(mixtools)
-library(lme4)
-library(lmerTest)
-attach(mtcars)
-library(plotrix)
-source(system.file("extdata", "ImmRes_output.R", package = "iklSurvML"))
-source(system.file("extdata", "ImmRes_generic.R", package = "iklSurvML"))
-source(system.file("extdata", "ImmRes_OE.R", package = "iklSurvML"))
-source(system.file("extdata", "ImmRes_master.R", package = "iklSurvML"))
-source(system.file("extdata", "ImmRes1_denovoCellTypeSig.R", package = "iklSurvML"))
-source(system.file("extdata", "ImmRes2_immuneResistanceProgram.R", package = "iklSurvML"))
-source(system.file("extdata", "ImmRes3_longitudinal.R", package = "iklSurvML"))
-source(system.file("extdata", "ImmRes4_predictICBresponses.R", package = "iklSurvML"))
-source(system.file("extdata", "ImmRes5_valCohort2.R", package = "iklSurvML"))
-source(system.file("extdata", "ImmRes6_pancanDrug.R", package = "iklSurvML"))
+# Load IMPRES helper scripts into the caller environment without attaching
+# package namespaces or example data frames to the global search path.
+.impres_env <- environment()
+.impres_packages <- c(
+  "matrixStats", "plyr", "ppcor", "survival", "ROCR", "Hmisc",
+  "rms", "mixtools", "lme4", "lmerTest", "plotrix"
+)
+.impres_missing <- .impres_packages[
+  !vapply(.impres_packages, requireNamespace, logical(1), quietly = TRUE)
+]
+if (length(.impres_missing) > 0) {
+  stop(
+    paste0("Missing IMPRES helper packages: ",
+           paste(.impres_missing, collapse = ", ")),
+    call. = FALSE
+  )
+}
+
+for (.impres_pkg in .impres_packages) {
+  for (.impres_nm in getNamespaceExports(.impres_pkg)) {
+    assign(.impres_nm, getExportedValue(.impres_pkg, .impres_nm), envir = .impres_env)
+  }
+}
+
+.impres_files <- c(
+  "ImmRes_output.R",
+  "ImmRes_generic.R",
+  "ImmRes_OE.R",
+  "ImmRes_master.R",
+  "ImmRes1_denovoCellTypeSig.R",
+  "ImmRes2_immuneResistanceProgram.R",
+  "ImmRes3_longitudinal.R",
+  "ImmRes4_predictICBresponses.R",
+  "ImmRes5_valCohort2.R",
+  "ImmRes6_pancanDrug.R"
+)
+
+for (.impres_file in .impres_files) {
+  sys.source(
+    system.file("extdata", .impres_file, package = "iklSurvML", mustWork = TRUE),
+    envir = .impres_env
+  )
+}
+
+rm(
+  .impres_env, .impres_packages, .impres_missing, .impres_pkg,
+  .impres_nm, .impres_files, .impres_file
+)

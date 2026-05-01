@@ -441,7 +441,6 @@ get.hyper.p.value.mat <- function(B1, B2) {
 }
 
 get.residuals <- function(X, g) {
-  set.seed(1234)
   f <- function(y) {
     lm(y ~ ., data = as.data.frame(g))$residuals
   }
@@ -650,7 +649,6 @@ get.anova.p <- function(y, x, order.flag = F) {
 
 plot.bimodal.distribution <- function(y, density.flag = F, xlab = "", main = "",
                                       pos.label = "pos", neg.label = "neg") {
-  set.seed(1234)
   mixmdl <- normalmixEM(y)
   main <- paste(main, paste("loglikelihood =", round(mixmdl$loglik)), sep = "\n")
   plot(mixmdl, which = 2, xlab2 = xlab, main2 = main)
