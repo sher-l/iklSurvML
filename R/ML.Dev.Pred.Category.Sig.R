@@ -1,5 +1,6 @@
 #' Resolve category ML methods and optional engines
 #' @keywords internal
+#' @noRd
 resolve_category_methods <- function(methods = NULL) {
   method_packages <- category_method_packages()
   valid_methods <- names(method_packages)
@@ -42,6 +43,7 @@ resolve_category_methods <- function(methods = NULL) {
 
 #' Validate category ML data before creating workers
 #' @keywords internal
+#' @noRd
 validate_category_ml_inputs <- function(train_data,
                                         list_train_vali_Data,
                                         candidate_genes,

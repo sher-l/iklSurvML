@@ -9,6 +9,7 @@
 #' @param unicox_pcutoff P-value threshold for selecting significant genes (default 0.05)
 #' @return A character vector of selected gene names
 #' @keywords internal
+#' @noRd
 sig_unicox <- function(gene_list, inputSet, unicox_pcutoff = 0.05) {
   message("Starting the data preprocess")
 

@@ -7,7 +7,6 @@
 #' @return A list of the univariable Cox regression result of the model.
 #' @export
 #'
-#' @examples
 cal_unicox_ml_res <- function(res.by.ML.Dev.Prog.Sig = NULL, # ML.Dev.Prog.Sig, 函数计算结果，内置包含有riskscore table
                               optimal.model, # 选择要计算的model
                               type = "categorical" # c('categorical'),c('continuous) 单因素回归 采用的变量，连续变量和分类变量，如果是分类变量，则按照中位值区分High and Low # 默认为分类变量

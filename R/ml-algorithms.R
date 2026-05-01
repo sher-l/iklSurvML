@@ -12,6 +12,7 @@
 #' @param seed Random seed
 #' @return Trained RSF model
 #' @keywords internal
+#' @noRd
 train_rsf <- function(est_dd, rf_nodesize = 5, seed = 5201314) {
   set.seed(seed)
   features <- colnames(est_dd)[-c(1, 2)]
@@ -38,6 +39,7 @@ train_rsf <- function(est_dd, rf_nodesize = 5, seed = 5201314) {
 #' @param seed Random seed for variable selection
 #' @return Character vector of selected variable names
 #' @keywords internal
+#' @noRd
 get_rsf_selected_vars <- function(fit, seed = 5201314) {
   set.seed(seed)
   rid <- randomForestSRC::var.select(object = fit, conservative = "high")
@@ -50,6 +52,7 @@ get_rsf_selected_vars <- function(fit, seed = 5201314) {
 #' @param newdata New data for prediction
 #' @return Predicted risk scores
 #' @keywords internal
+#' @noRd
 predict_rsf <- function(fit, newdata) {
   rs <- stats::predict(fit, newdata = newdata)$predicted
   return(round(as.numeric(rs), 10))
@@ -65,6 +68,7 @@ predict_rsf <- function(fit, newdata) {
 #' @param seed Random seed
 #' @return Trained cv.glmnet model
 #' @keywords internal
+#' @noRd
 train_enet <- function(est_dd, rid = NULL, alpha = 0.5, seed = 5201314) {
   if (is.null(rid)) {
     rid <- colnames(est_dd)[-c(1, 2)]
@@ -93,6 +97,7 @@ train_enet <- function(est_dd, rid = NULL, alpha = 0.5, seed = 5201314) {
 #' @param rid Feature names to use
 #' @return Predicted risk scores
 #' @keywords internal
+#' @noRd
 predict_enet <- function(fit, newdata, rid) {
   return(as.numeric(stats::predict(
     fit,
@@ -111,6 +116,7 @@ predict_enet <- function(fit, newdata, rid) {
 #' @param seed Random seed
 #' @return Trained cv.glmnet model
 #' @keywords internal
+#' @noRd
 train_lasso <- function(est_dd, rid = NULL, seed = 5201314) {
   if (is.null(rid)) {
     rid <- colnames(est_dd)[-c(1, 2)]
@@ -137,6 +143,7 @@ train_lasso <- function(est_dd, rid = NULL, seed = 5201314) {
 #' @param fit cv.glmnet model
 #' @return Character vector of selected variable names
 #' @keywords internal
+#' @noRd
 get_lasso_selected_vars <- function(fit) {
   my_coefs <- stats::coef(fit, s = "lambda.min")
   rid <- my_coefs@Dimnames[[1]][Matrix::which(my_coefs != 0)]
@@ -150,6 +157,7 @@ get_lasso_selected_vars <- function(fit) {
 #' @param rid Feature names to use
 #' @return Predicted risk scores
 #' @keywords internal
+#' @noRd
 predict_lasso <- function(fit, newdata, rid) {
   return(as.numeric(stats::predict(
     fit,
@@ -168,6 +176,7 @@ predict_lasso <- function(fit, newdata, rid) {
 #' @param seed Random seed
 #' @return Trained cv.glmnet model
 #' @keywords internal
+#' @noRd
 train_ridge <- function(est_dd, rid = NULL, seed = 5201314) {
   if (is.null(rid)) {
     rid <- colnames(est_dd)[-c(1, 2)]
@@ -200,6 +209,7 @@ train_ridge <- function(est_dd, rid = NULL, seed = 5201314) {
 #' @param rid Feature names to use
 #' @return Predicted risk scores
 #' @keywords internal
+#' @noRd
 predict_ridge <- function(fit, newdata, rid) {
   # fit is a list with $fit and $cv.fit (matching original code structure)
   # Original code: predict(fit, s = cv.fit$lambda.min) - uses glmnet object, not cv.glmnet
@@ -226,6 +236,7 @@ predict_ridge <- function(fit, newdata, rid) {
 #' @param direction Direction for stepwise selection: "both", "backward", "forward"
 #' @return Trained coxph model
 #' @keywords internal
+#' @noRd
 train_stepcox <- function(est_dd, direction = "both") {
   feature_names <- setdiff(colnames(est_dd), c("OS.time", "OS"))
   full_formula <- stats::reformulate(feature_names, response = "survival::Surv(OS.time, OS)")
@@ -258,6 +269,7 @@ train_stepcox <- function(est_dd, direction = "both") {
 #' @param fit coxph model from stepcox
 #' @return Character vector of selected variable names
 #' @keywords internal
+#' @noRd
 get_stepcox_selected_vars <- function(fit) {
   return(names(stats::coef(fit)))
 }
@@ -268,6 +280,7 @@ get_stepcox_selected_vars <- function(fit) {
 #' @param newdata New data for prediction
 #' @return Predicted risk scores
 #' @keywords internal
+#' @noRd
 predict_stepcox <- function(fit, newdata) {
   return(stats::predict(fit, type = "risk", newdata = newdata))
 }
@@ -280,6 +293,7 @@ predict_stepcox <- function(fit, newdata) {
 #' @param seed Random seed
 #' @return Trained CoxBoost model
 #' @keywords internal
+#' @noRd
 train_coxboost <- function(est_dd, seed = 5201314) {
   set.seed(seed)
   features <- colnames(est_dd)[-c(1, 2)]
@@ -325,6 +339,7 @@ train_coxboost <- function(est_dd, seed = 5201314) {
 #' @param tol Coefficient tolerance for non-zero selection
 #' @return Character vector of selected variable names
 #' @keywords internal
+#' @noRd
 get_coxboost_selected_vars <- function(fit, tol = .Machine$double.eps^0.5) {
   coefs <- stats::coef(fit)
   selected <- names(coefs)[!is.na(coefs) & abs(coefs) > tol]
@@ -337,6 +352,7 @@ get_coxboost_selected_vars <- function(fit, tol = .Machine$double.eps^0.5) {
 #' @param newdata New data for prediction
 #' @return Predicted risk scores
 #' @keywords internal
+#' @noRd
 predict_coxboost <- function(fit, newdata) {
   predictor_data <- newdata
   if (!is.null(fit[["xnames"]])) {
@@ -365,6 +381,7 @@ predict_coxboost <- function(fit, newdata) {
 #' @param seed Random seed
 #' @return Trained plsRcox model
 #' @keywords internal
+#' @noRd
 train_plsrcox <- function(est_dd, rid = NULL, seed = 5201314) {
   if (is.null(rid)) {
     rid <- colnames(est_dd)[-c(1, 2)]
@@ -395,6 +412,7 @@ train_plsrcox <- function(est_dd, rid = NULL, seed = 5201314) {
 #' near-separable survival data. Try the historical 5-fold setting first,
 #' then fall back to alternate fold counts before using one safe component.
 #' @keywords internal
+#' @noRd
 select_plsrcox_component_count <- function(prep, time, status, seed,
                                            max_nt = min(10, ncol(prep$x)),
                                            cv_fun = plsRcox::cv.plsRcox) {
@@ -444,6 +462,7 @@ select_plsrcox_component_count <- function(prep, time, status, seed,
 
 #' Normalize plsRcox cross-validation output into a component count
 #' @keywords internal
+#' @noRd
 normalize_plsrcox_component_count <- function(cv_res, max_nt) {
   candidates <- c(
     if (is.list(cv_res) && length(cv_res) >= 5L) cv_res[[5L]] else NA,
@@ -460,6 +479,7 @@ normalize_plsrcox_component_count <- function(cv_res, max_nt) {
 
 #' Fit plsRcox and reduce components if the final Cox fit is unstable
 #' @keywords internal
+#' @noRd
 fit_plsrcox_with_fallback <- function(prep, time, status, selected_nt) {
   max_nt <- max(1L, min(as.integer(selected_nt), ncol(prep$x)))
   component_candidates <- unique(c(max_nt, rev(seq_len(max_nt))))
@@ -493,6 +513,7 @@ fit_plsrcox_with_fallback <- function(prep, time, status, selected_nt) {
 
 #' Standardize plsRcox feature matrices for numeric stability
 #' @keywords internal
+#' @noRd
 prepare_plsrcox_features <- function(data, rid, center = NULL, scale = NULL) {
   x <- as.data.frame(data[, rid, drop = FALSE])
   x[] <- lapply(x, as.numeric)
@@ -520,6 +541,7 @@ prepare_plsrcox_features <- function(data, rid, center = NULL, scale = NULL) {
 #' @param newdata New data for prediction
 #' @return Predicted risk scores
 #' @keywords internal
+#' @noRd
 predict_plsrcox <- function(fit, newdata) {
   rid <- attr(fit, "iklsurvml_features")
   if (is.null(rid)) {
@@ -547,6 +569,7 @@ predict_plsrcox <- function(fit, newdata) {
 #' @param seed Random seed
 #' @return List with fit and cv.fit
 #' @keywords internal
+#' @noRd
 train_superpc <- function(est_dd, seed = 5201314) {
   data <- list(
     x = t(est_dd[, -c(1, 2)]),
@@ -598,6 +621,7 @@ train_superpc <- function(est_dd, seed = 5201314) {
 #' Build a SuperPC model object with its training feature subset
 #'
 #' @keywords internal
+#' @noRd
 make_superpc_model <- function(fit, cv_fit, train_data) {
   features <- colnames(train_data)[-c(1, 2)]
   train_data <- as.data.frame(train_data[, c("OS.time", "OS", features), drop = FALSE])
@@ -618,6 +642,7 @@ make_superpc_model <- function(fit, cv_fit, train_data) {
 
 #' Select SuperPC prediction threshold and component count from CV scores
 #' @keywords internal
+#' @noRd
 select_superpc_prediction_params <- function(cv_fit) {
   thresholds <- cv_fit$thresholds
   scor <- cv_fit[["scor"]]
@@ -646,6 +671,7 @@ select_superpc_prediction_params <- function(cv_fit) {
 #' Extract SuperPC model components from current or legacy objects
 #'
 #' @keywords internal
+#' @noRd
 extract_superpc_model <- function(superpc_obj) {
   if (!is.list(superpc_obj)) {
     stop("SuperPC model must be a list-like object", call. = FALSE)
@@ -697,6 +723,7 @@ extract_superpc_model <- function(superpc_obj) {
 #' @param newdata New data for prediction
 #' @return Predicted risk scores
 #' @keywords internal
+#' @noRd
 predict_superpc <- function(fit, cv_fit, train_data, newdata) {
   data <- list(
     x = t(train_data[, -c(1, 2)]),
@@ -752,6 +779,7 @@ predict_superpc <- function(fit, cv_fit, train_data, newdata) {
 #' Predict with a wrapped SuperPC model while preserving its feature subset
 #'
 #' @keywords internal
+#' @noRd
 predict_superpc_model <- function(superpc_obj, fallback_train_data, newdata) {
   parts <- extract_superpc_model(superpc_obj)
   train_data <- parts$train_data
@@ -789,6 +817,7 @@ predict_superpc_model <- function(superpc_obj, fallback_train_data, newdata) {
 #' @param cores_for_parallel Number of cores for parallel processing
 #' @return List with fit and best iteration
 #' @keywords internal
+#' @noRd
 train_gbm <- function(est_dd, seed = 5201314, cores_for_parallel = 6) {
   # gbm's internal CV prediction path for distribution="coxph" has been
   # observed to segfault on small survival datasets in R 4.5/gbm builds.
@@ -859,6 +888,7 @@ train_gbm <- function(est_dd, seed = 5201314, cores_for_parallel = 6) {
 #' @param newdata New data for prediction
 #' @return Predicted risk scores
 #' @keywords internal
+#' @noRd
 predict_gbm <- function(fit, best, newdata) {
   return(as.numeric(stats::predict(fit, newdata, n.trees = best, type = "link")))
 }
@@ -871,6 +901,7 @@ predict_gbm <- function(fit, best, newdata) {
 #' @param seed Random seed
 #' @return Trained survivalsvm model
 #' @keywords internal
+#' @noRd
 train_survivalsvm <- function(est_dd, seed = 5201314) {
   attempts <- list(
     list(gamma.mu = 1, opt.meth = "quadprog"),
@@ -917,6 +948,7 @@ train_survivalsvm <- function(est_dd, seed = 5201314) {
 #' @param newdata New data for prediction
 #' @return Predicted risk scores
 #' @keywords internal
+#' @noRd
 predict_survivalsvm <- function(fit, newdata) {
   # survivalsvm's default regression output is survival-time oriented on the
   # package's benchmark data: larger predictions indicate better prognosis.
@@ -934,6 +966,7 @@ predict_survivalsvm <- function(fit, newdata) {
 #' @param data Data with OS.time and OS
 #' @return C-index value
 #' @keywords internal
+#' @noRd
 calculate_cindex <- function(rs, data) {
   cindex_data <- data.frame(
     OS.time = data$OS.time,
@@ -959,6 +992,7 @@ calculate_cindex <- function(rs, data) {
 #' @param rs_func Function to calculate risk scores
 #' @return List of risk score data frames
 #' @keywords internal
+#' @noRd
 calculate_risk_scores <- function(val_dd_list, rs_func) {
   rs <- lapply(val_dd_list, function(x) {
     cbind(x[, 1:2], RS = rs_func(x))

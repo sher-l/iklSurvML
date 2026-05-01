@@ -14,7 +14,6 @@
 #' @return A data frame including the methods and the core genes screened by the corresponding algorithm.
 #' @export
 #'
-#' @examples
 ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day), ??? OS, (0/1), ?????????????????log2(x+1)
                                        candidate_genes,
                                        mode = NULL, # all, single,all_without_SVM

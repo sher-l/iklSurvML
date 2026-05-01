@@ -8,7 +8,6 @@
 #' @return A list of the AUC results of each signature we collected in each data. 
 #' @export
 #'
-#' @examples
 cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第一列为ID,第二列为Var, Y/N, 从第三列开始是基因名称
                                  seed = 5201314,
                                  train_data,
@@ -320,13 +319,13 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
   model.Dev <- function(training, method, sig) {
     training <- training[, colnames(training) %in% c("Var", sig)]
     # 7 models adpoted in this study as followings:
-    #' nb': navie bayes
-    #' svmRadialWeights': Support Vector Machines with Class Weights
-    #' rf': random forest
-    #' kknn': k-Nearest Neighbors
-    #' adaboost':AdaBoost Classification Trees
-    #' LogitBoost':Boosted Logistic Regressions
-    #' cancerclass': cancerclass
+    # nb: naive bayes
+    # svmRadialWeights: Support Vector Machines with Class Weights
+    # rf: random forest
+    # kknn: k-Nearest Neighbors
+    # adaboost: AdaBoost Classification Trees
+    # LogitBoost: Boosted Logistic Regressions
+    # cancerclass: cancerclass
 
     # Grid search for parameter tuning
     Grid <- list(
@@ -354,7 +353,12 @@ cal_auc_previous_sig <- function(list_train_vali_Data, # lsit of the cohort, 第
         predictor <- cancerclass::fit(Sig.Exp.train, method = "welch.test")
         model.tune <- predictor
       } else {
-        f <- 5 # f folds resampling
+        f <- resolve_category_cv_folds(
+          training$Var,
+          requested_folds = 5L,
+          positive_class = "Y",
+          context = paste0("previous immunotherapy method '", m, "'")
+        )
         r <- 10 # r repeats
         n <- f * r
 

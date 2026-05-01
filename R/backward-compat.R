@@ -85,32 +85,32 @@ hr_com <- function(...) {
 
 # ---- auc_category_comp alias ----
 
-#' @rdname auc_category_comp
-#' @export
+# @rdname auc_category_comp
+# @export skipped: already snake_case
 # Already snake_case
 
 # ---- auc_comp alias ----
 
-#' @rdname auc_comp
-#' @export
+# @rdname auc_comp
+# @export skipped: already snake_case
 # Already snake_case
 
 # ---- auc_dis_all alias ----
 
-#' @rdname auc_dis_all
-#' @export
+# @rdname auc_dis_all
+# @export skipped: already snake_case
 # Already snake_case
 
 # ---- auc_dis_select alias ----
 
-#' @rdname auc_dis_select
-#' @export
+# @rdname auc_dis_select
+# @export skipped: already snake_case
 # Already snake_case
 
 # ---- auc_vis_category_all alias ----
 
-#' @rdname auc_vis_category_all
-#' @export
+# @rdname auc_vis_category_all
+# @export skipped: already snake_case
 # Already snake_case
 
 # ---- cal.auc.category.model alias ----
@@ -131,78 +131,78 @@ cal_roc_category_model <- function(...) {
 
 # ---- cindex_comp alias ----
 
-#' @rdname cindex_comp
-#' @export
+# @rdname cindex_comp
+# @export skipped: already snake_case
 # Already snake_case
 
 # ---- cindex_dis_all alias ----
 
-#' @rdname cindex_dis_all
-#' @export
+# @rdname cindex_dis_all
+# @export skipped: already snake_case
 # Already snake_case
 
 # ---- cindex_dis_select alias ----
 
-#' @rdname cindex_dis_select
-#' @export
+# @rdname cindex_dis_select
+# @export skipped: already snake_case
 # Already snake_case
 
 # ---- cor_plot alias ----
 
-#' @rdname cor_plot
-#' @export
+# @rdname cor_plot
+# @export skipped: already snake_case
 # Already snake_case
 
 # ---- core_feature_rank alias ----
 
-#' @rdname core_feature_rank
-#' @export
+# @rdname core_feature_rank
+# @export skipped: already snake_case
 # Already snake_case
 
 # ---- core_feature_select alias ----
 
-#' @rdname core_feature_select
-#' @export
+# @rdname core_feature_select
+# @export skipped: already snake_case
 # Already snake_case
 
 # ---- core_feature_sur alias ----
 
-#' @rdname core_feature_sur
-#' @export
+# @rdname core_feature_sur
+# @export skipped: already snake_case
 # Already snake_case
 
 # ---- immuno_heatmap alias ----
 
-#' @rdname immuno_heatmap
-#' @export
+# @rdname immuno_heatmap
+# @export skipped: already snake_case
 # Already snake_case
 
 # ---- meta_unicox_vis alias ----
 
-#' @rdname meta_unicox_vis
-#' @export
+# @rdname meta_unicox_vis
+# @export skipped: already snake_case
 # Already snake_case
 
 # ---- roc_vis alias ----
 
-#' @rdname roc_vis
-#' @export
+# @rdname roc_vis
+# @export skipped: already snake_case
 # Already snake_case
 
 # ---- roc_vis_category alias ----
 
-#' @rdname roc_vis_category
-#' @export
+# @rdname roc_vis_category
+# @export skipped: already snake_case
 # Already snake_case
 
 # ---- rs_sur alias ----
 
-#' @rdname rs_sur
-#' @export
+# @rdname rs_sur
+# @export skipped: already snake_case
 # Already snake_case
 
 # ---- signature_score alias ----
 
-#' @rdname signature_score
-#' @export
+# @rdname signature_score
+# @export skipped: already snake_case
 # Already snake_case

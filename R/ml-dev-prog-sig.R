@@ -334,6 +334,7 @@ ML.Dev.Prog.Sig <- function(train_data,
 #' @inheritParams ML.Dev.Prog.Sig
 #' @return Result list
 #' @keywords internal
+#' @noRd
 run_all_algorithms <- function(est_dd,
                                train_data,
                                val_dd_list,
@@ -687,6 +688,7 @@ run_all_algorithms <- function(est_dd,
 #' @inheritParams ML.Dev.Prog.Sig
 #' @return Result list
 #' @keywords internal
+#' @noRd
 run_single_algorithm <- function(est_dd,
                                  train_data,
                                  val_dd_list,
@@ -787,6 +789,7 @@ run_single_algorithm <- function(est_dd,
 #' @inheritParams ML.Dev.Prog.Sig
 #' @return Result list
 #' @keywords internal
+#' @noRd
 run_double_algorithm <- function(est_dd,
                                  train_data,
                                  val_dd_list,

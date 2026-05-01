@@ -8,6 +8,7 @@
 #' @param rawtableID A list of original tables with ID column
 #' @return A list of risk score tables with ID column added
 #' @keywords internal
+#' @noRd
 return_id_to_rs <- function(rs.table.list, rawtableID) {
   for (i in names(rs.table.list)) {
     rs.table.list[[i]]$ID <- rawtableID[[i]]$ID
@@ -28,12 +29,14 @@ return_id_to_rs <- function(rs.table.list, rawtableID) {
 #' @param x Character vector of feature names
 #' @return Normalized feature names
 #' @keywords internal
+#' @noRd
 normalize_ml_feature_names <- function(x) {
   gsub("[-_]", ".", x)
 }
 
 #' Normalize a data frame's column names for ML workflows
 #' @keywords internal
+#' @noRd
 normalize_ml_data_columns <- function(x, context = "data") {
   colnames(x) <- normalize_ml_feature_names(colnames(x))
   duplicated_cols <- colnames(x)[duplicated(colnames(x))]
@@ -52,6 +55,7 @@ normalize_ml_data_columns <- function(x, context = "data") {
 #' re-encoded as 1, 2, 3, ... .  Non-empty values that become NA are rejected
 #' instead of being hidden by downstream mean imputation.
 #' @keywords internal
+#' @noRd
 safe_as_numeric <- function(x, column, label) {
   if (is.factor(x)) {
     x <- as.character(x)
@@ -80,6 +84,7 @@ safe_as_numeric <- function(x, column, label) {
 
 #' Safely coerce selected data frame columns to numeric
 #' @keywords internal
+#' @noRd
 coerce_numeric_columns <- function(x, columns, label) {
   for (column in columns) {
     x[[column]] <- safe_as_numeric(x[[column]], column, label)
@@ -89,6 +94,7 @@ coerce_numeric_columns <- function(x, columns, label) {
 
 #' Validate that survival status uses the package-wide 0/1 event convention
 #' @keywords internal
+#' @noRd
 assert_binary_survival_status <- function(x, label = "data") {
   status_values <- sort(unique(stats::na.omit(x$OS)))
   if (length(status_values) == 0L) {
@@ -106,6 +112,7 @@ assert_binary_survival_status <- function(x, label = "data") {
 
 #' Validate sample IDs before model fitting or prediction
 #' @keywords internal
+#' @noRd
 assert_unique_ids <- function(x, label = "data", id_col = "ID") {
   if (!id_col %in% colnames(x)) {
     stop(paste0(label, " is missing required ID column: ", id_col), call. = FALSE)
@@ -131,6 +138,7 @@ assert_unique_ids <- function(x, label = "data", id_col = "ID") {
 #' the training feature space.  The legacy intersection behavior remains
 #' available through feature_alignment = "intersection".
 #' @keywords internal
+#' @noRd
 resolve_survival_common_features <- function(train_data,
                                              list_train_vali_Data,
                                              candidate_genes,
@@ -172,6 +180,7 @@ resolve_survival_common_features <- function(train_data,
 
 #' Normalize survival ML algorithm input aliases
 #' @keywords internal
+#' @noRd
 normalize_survival_ml_name <- function(x) {
   if (is.null(x)) {
     return(NULL)
@@ -198,6 +207,7 @@ normalize_survival_ml_name <- function(x) {
 
 #' Display name for survival ML models
 #' @keywords internal
+#' @noRd
 display_survival_ml_name <- function(x) {
   x <- normalize_survival_ml_name(x)
   if (identical(x, "survivalsvm")) {
@@ -214,6 +224,7 @@ display_survival_ml_name <- function(x) {
 #' the historical wrappers, but validation and combination guards should read
 #' from this registry instead of hard-coded, drifting vectors.
 #' @keywords internal
+#' @noRd
 survival_ml_registry <- function() {
   data.frame(
     name = c("RSF", "Enet", "StepCox", "CoxBoost", "plsRcox",
@@ -228,12 +239,14 @@ survival_ml_registry <- function() {
 
 #' Valid survival ML algorithm names
 #' @keywords internal
+#' @noRd
 survival_ml_names <- function() {
   survival_ml_registry()$name
 }
 
 #' Valid first-stage survival ML selector names
 #' @keywords internal
+#' @noRd
 survival_ml_first_stage_names <- function() {
   registry <- survival_ml_registry()
   registry$name[registry$first_stage_selector]
@@ -241,6 +254,7 @@ survival_ml_first_stage_names <- function() {
 
 #' Reject survival ML self-combinations
 #' @keywords internal
+#' @noRd
 assert_no_survival_self_combination <- function(double_ml1, double_ml2) {
   if (!is.null(double_ml1) && !is.null(double_ml2) &&
       length(double_ml1) == 1 && length(double_ml2) == 1 &&
@@ -256,6 +270,7 @@ assert_no_survival_self_combination <- function(double_ml1, double_ml2) {
 
 #' Normalize the fixed all-mode model grid
 #' @keywords internal
+#' @noRd
 normalize_all_mode_model_grid <- function(model_grid = "117") {
   if (is.null(model_grid)) {
     return("117")
@@ -273,6 +288,7 @@ normalize_all_mode_model_grid <- function(model_grid = "117") {
 
 #' Return StepCox directions used as first-stage selectors in all mode
 #' @keywords internal
+#' @noRd
 all_mode_stepcox_selector_dirs <- function(model_grid = "117") {
   normalize_all_mode_model_grid(model_grid)
   c("both", "backward", "forward")
@@ -280,6 +296,7 @@ all_mode_stepcox_selector_dirs <- function(model_grid = "117") {
 
 #' Return CoxBoost second-stage algorithms for the all-mode grid
 #' @keywords internal
+#' @noRd
 all_mode_coxboost_second_stage_algorithms <- function(model_grid = "117") {
   normalize_all_mode_model_grid(model_grid)
   c("Enet", "GBM", "Lasso", "plsRcox", "Ridge", "StepCox", "SuperPC", "survivalsvm")
@@ -287,6 +304,7 @@ all_mode_coxboost_second_stage_algorithms <- function(model_grid = "117") {
 
 #' Return Lasso second-stage algorithms for the all-mode grid
 #' @keywords internal
+#' @noRd
 all_mode_lasso_second_stage_algorithms <- function(model_grid = "117") {
   normalize_all_mode_model_grid(model_grid)
   c("CoxBoost", "GBM", "plsRcox", "RSF", "StepCox", "SuperPC", "survivalsvm")
@@ -294,12 +312,14 @@ all_mode_lasso_second_stage_algorithms <- function(model_grid = "117") {
 
 #' Return the Enet alpha values expanded by all-mode grids
 #' @keywords internal
+#' @noRd
 all_mode_alpha_values <- function() {
   seq(0.1, 0.9, by = 0.1)
 }
 
 #' Format one survival ML stage for model names
 #' @keywords internal
+#' @noRd
 format_survival_model_stage <- function(algorithm, parameter = NA_character_) {
   algorithm <- normalize_survival_ml_name(algorithm)
   if (identical(algorithm, "Enet")) {
@@ -318,6 +338,7 @@ format_survival_model_stage <- function(algorithm, parameter = NA_character_) {
 #' completion checks compare their materialized model names against this table so
 #' duplicated runner code cannot silently drift.
 #' @keywords internal
+#' @noRd
 survival_all_mode_task_table <- function(model_grid = "117") {
   normalize_all_mode_model_grid(model_grid)
   tasks <- list()
@@ -416,18 +437,21 @@ survival_all_mode_task_table <- function(model_grid = "117") {
 
 #' Return the advertised all-mode model count for the fixed grid
 #' @keywords internal
+#' @noRd
 all_mode_model_grid_size <- function(model_grid = "117") {
   nrow(survival_all_mode_task_table(model_grid))
 }
 
 #' Return all expected all-mode model names in deterministic order
 #' @keywords internal
+#' @noRd
 all_mode_model_names <- function(model_grid = "117") {
   survival_all_mode_task_table(model_grid)$model_name
 }
 
 #' Return expected all-mode model names for a first-stage selector
 #' @keywords internal
+#' @noRd
 all_mode_selector_model_names <- function(selector,
                                           selector_param = NULL,
                                           model_grid = "117") {
@@ -442,6 +466,7 @@ all_mode_selector_model_names <- function(selector,
 
 #' Format model skip records with an explicit reason
 #' @keywords internal
+#' @noRd
 format_model_skip_records <- function(model_names, reason) {
   if (length(model_names) == 0L) {
     return(character())
@@ -475,6 +500,7 @@ warn_if_all_mode_incomplete <- function(actual, expected = all_mode_model_grid_s
 #' datasets whose first-stage selectors legitimately cannot materialize every
 #' two-stage model.
 #' @keywords internal
+#' @noRd
 assert_complete_all_mode_result <- function(result,
                                             expected = all_mode_model_grid_size(),
                                             allow_partial = FALSE,
@@ -543,6 +569,7 @@ assert_complete_all_mode_result <- function(result,
 
 #' Validate and canonicalize survival ML parameters
 #' @keywords internal
+#' @noRd
 validate_survival_ml_params <- function(mode,
                                         single_ml = NULL,
                                         double_ml1 = NULL,
@@ -601,6 +628,7 @@ validate_survival_ml_params <- function(mode,
 
 #' Resolve requested model names from a stored survival ML result
 #' @keywords internal
+#' @noRd
 select_survival_model_names <- function(model_names,
                                         mode,
                                         single_ml = NULL,
@@ -664,6 +692,7 @@ select_survival_model_names <- function(model_names,
 #' @param totalN Total number of iterations
 #' @param breakN Number of breaks in progress bar (default 20)
 #' @keywords internal
+#' @noRd
 display_progress <- function(index, totalN, breakN = 20) {
   if (index %% ceiling(totalN / breakN) == 0) {
     cat(paste(round(index * 100 / totalN), "% ", sep = ""))
@@ -676,6 +705,7 @@ display_progress <- function(index, totalN, breakN = 20) {
 #' @param common_feature Common features to select
 #' @return Preprocessed data list
 #' @keywords internal
+#' @noRd
 preprocess_data_list <- function(list_train_vali_Data, common_feature, recipe = NULL) {
   data_names <- names(list_train_vali_Data)
   if (is.null(data_names)) {
@@ -703,6 +733,7 @@ preprocess_data_list <- function(list_train_vali_Data, common_feature, recipe = 
 #' @param common_feature Common features to select
 #' @return Preprocessed training data
 #' @keywords internal
+#' @noRd
 preprocess_train_data <- function(train_data, common_feature, return_recipe = FALSE) {
   prepped <- fit_survival_preprocess_recipe(train_data, common_feature, "Training data")
   if (isTRUE(return_recipe)) {
@@ -713,12 +744,14 @@ preprocess_train_data <- function(train_data, common_feature, return_recipe = FA
 
 #' Shared preprocessing for survival ML data frames
 #' @keywords internal
+#' @noRd
 preprocess_ml_data_frame <- function(x, common_feature, label) {
   fit_survival_preprocess_recipe(x, common_feature, label)$data
 }
 
 #' Fit a train-only survival preprocessing recipe
 #' @keywords internal
+#' @noRd
 fit_survival_preprocess_recipe <- function(x, common_feature, label = "Training data") {
   x <- normalize_ml_data_columns(x, label)
   common_feature <- normalize_ml_feature_names(common_feature)
@@ -774,6 +807,7 @@ fit_survival_preprocess_recipe <- function(x, common_feature, label = "Training 
 
 #' Apply a train-only survival preprocessing recipe
 #' @keywords internal
+#' @noRd
 apply_survival_preprocess_recipe <- function(x,
                                              recipe,
                                              label = "data",
@@ -833,6 +867,7 @@ apply_survival_preprocess_recipe <- function(x,
 #' converted to expression value 0; absence from a cohort is different from
 #' measured zero expression and changes the risk-score semantics.
 #' @keywords internal
+#' @noRd
 prepare_previous_signature_input_data <- function(list_input_data,
                                                   common_feature,
                                                   context = "previous signature") {
@@ -868,6 +903,7 @@ prepare_previous_signature_input_data <- function(list_input_data,
 #' values should not be cohort-wise mean-imputed or silently re-encoded.  Reject
 #' unsafe inputs and require callers to provide complete numeric expression.
 #' @keywords internal
+#' @noRd
 preprocess_previous_signature_survival_data <- function(list_input_data,
                                                         common_feature,
                                                         context = "previous signature") {
@@ -918,6 +954,7 @@ preprocess_previous_signature_survival_data <- function(list_input_data,
 #' This helper rejects absent genes instead of relying on positional slices after
 #' `%in%` subsetting, which can silently shorten or reorder a signature matrix.
 #' @keywords internal
+#' @noRd
 calculate_signature_score_by_genes <- function(data,
                                                signature_genes,
                                                signature_name,
@@ -970,6 +1007,7 @@ calculate_signature_score_by_genes <- function(data,
 
 #' Calculate time-dependent ROC from fixed-direction risk scores
 #' @keywords internal
+#' @noRd
 calculate_survival_roc_from_risk <- function(x,
                                              AUC_time,
                                              auc_cal_method = "KM",
@@ -1022,6 +1060,7 @@ calculate_survival_roc_from_risk <- function(x,
 
 #' Infer the final learner used by a survival model name
 #' @keywords internal
+#' @noRd
 survival_model_stage_algorithm <- function(stage_name) {
   if (grepl("^Enet\\[", stage_name)) {
     return("Enet")
@@ -1034,6 +1073,7 @@ survival_model_stage_algorithm <- function(stage_name) {
 
 #' Infer the final learner used by a survival model name
 #' @keywords internal
+#' @noRd
 survival_model_final_algorithm <- function(model_name) {
   final <- tail(strsplit(model_name, " \\+ ")[[1]], 1)
   survival_model_stage_algorithm(final)
@@ -1041,6 +1081,7 @@ survival_model_final_algorithm <- function(model_name) {
 
 #' Read iklSurvML metadata from raw or wrapped model objects
 #' @keywords internal
+#' @noRd
 get_iklsurvml_model_attr <- function(fit, attr_name) {
   value <- attr(fit, attr_name, exact = TRUE)
   if (!is.null(value)) {
@@ -1057,6 +1098,7 @@ get_iklsurvml_model_attr <- function(fit, attr_name) {
 
 #' Extract the feature columns required to predict a stored survival model
 #' @keywords internal
+#' @noRd
 survival_model_features <- function(model_name, fit) {
   algorithm <- survival_model_final_algorithm(model_name)
   features <- get_iklsurvml_model_attr(fit, "iklsurvml_features")
@@ -1103,6 +1145,7 @@ survival_model_features <- function(model_name, fit) {
 
 #' Build a stable metadata record for a fitted survival model
 #' @keywords internal
+#' @noRd
 build_survival_model_info <- function(model_name, fit) {
   parts <- strsplit(model_name, " \\+ ")[[1]]
   learner <- survival_model_final_algorithm(model_name)
@@ -1133,6 +1176,7 @@ build_survival_model_info <- function(model_name, fit) {
 
 #' Attach stable metadata records to survival ML result objects
 #' @keywords internal
+#' @noRd
 attach_survival_model_info <- function(result) {
   if (is.null(result) || is.null(result$ml.res) || length(result$ml.res) == 0L) {
     return(result)
@@ -1148,6 +1192,7 @@ attach_survival_model_info <- function(result) {
 
 #' Subset survival prediction data to a model's required columns
 #' @keywords internal
+#' @noRd
 subset_survival_prediction_data <- function(x, features, model_name) {
   required <- c("OS.time", "OS", features)
   missing <- setdiff(required, colnames(x))
@@ -1162,6 +1207,7 @@ subset_survival_prediction_data <- function(x, features, model_name) {
 
 #' Recalculate risk scores for any stored survival model via one dispatch path
 #' @keywords internal
+#' @noRd
 calculate_survival_model_risk_scores <- function(model_name,
                                                  fit,
                                                  val_dd_list,
@@ -1221,6 +1267,7 @@ calculate_survival_model_risk_scores <- function(model_name,
 
 #' Category ML optional engine dependency map
 #' @keywords internal
+#' @noRd
 category_method_packages <- function() {
   list(
     nb = "klaR",
@@ -1235,6 +1282,7 @@ category_method_packages <- function() {
 
 #' Category ML tune grids sized to the current feature count
 #' @keywords internal
+#' @noRd
 category_tune_grid <- function(n_features,
                                tune_profile = c("standard", "exhaustive")) {
   tune_profile <- match.arg(tune_profile)
@@ -1281,6 +1329,7 @@ category_tune_grid <- function(n_features,
 
 #' Validate and return category class levels with the positive class first
 #' @keywords internal
+#' @noRd
 category_class_levels <- function(positive_class = "Y") {
   if (is.null(positive_class) || length(positive_class) != 1L ||
       is.na(positive_class) || !positive_class %in% c("Y", "N")) {
@@ -1291,6 +1340,7 @@ category_class_levels <- function(positive_class = "Y") {
 
 #' Cap survival CV folds to the available observations and events
 #' @keywords internal
+#' @noRd
 resolve_survival_cv_folds <- function(status,
                                       requested_folds = 10L,
                                       min_folds = 2L,
@@ -1316,6 +1366,7 @@ resolve_survival_cv_folds <- function(status,
 
 #' Cap category CV folds to the smallest class count
 #' @keywords internal
+#' @noRd
 resolve_category_cv_folds <- function(y,
                                       requested_folds,
                                       positive_class = "Y",
@@ -1347,6 +1398,7 @@ resolve_category_cv_folds <- function(y,
 
 #' Extract cancerclass prediction scores from supported prediction objects
 #' @keywords internal
+#' @noRd
 category_cancerclass_prediction_frame <- function(prediction) {
   if (is.data.frame(prediction)) {
     return(prediction)
@@ -1364,6 +1416,7 @@ category_cancerclass_prediction_frame <- function(prediction) {
 
 #' Build a cancerclass ROC against observed validation labels
 #' @keywords internal
+#' @noRd
 category_cancerclass_roc <- function(observed,
                                      prediction,
                                      positive_class = "Y") {
@@ -1396,6 +1449,7 @@ category_cancerclass_roc <- function(observed,
 
 #' Fit a train-only preprocessing recipe for category ML data
 #' @keywords internal
+#' @noRd
 fit_category_preprocess_recipe <- function(x,
                                            common_feature,
                                            label = "Training data",
@@ -1456,6 +1510,7 @@ fit_category_preprocess_recipe <- function(x,
 
 #' Apply a train-only category ML preprocessing recipe
 #' @keywords internal
+#' @noRd
 apply_category_preprocess_recipe <- function(x,
                                              recipe,
                                              label = "data",
@@ -1498,6 +1553,7 @@ apply_category_preprocess_recipe <- function(x,
 
 #' IMPRES helper runtime dependencies
 #' @keywords internal
+#' @noRd
 impres_required_packages <- function() {
   c(
     "matrixStats", "plyr", "ppcor", "survival", "ROCR", "Hmisc",
@@ -1507,6 +1563,7 @@ impres_required_packages <- function() {
 
 #' Load package exports into an isolated IMPRES source environment
 #' @keywords internal
+#' @noRd
 load_impres_packages_into_env <- function(env, packages = impres_required_packages()) {
   missing <- packages[!vapply(packages, requireNamespace, logical(1), quietly = TRUE)]
   if (length(missing) > 0) {
@@ -1526,6 +1583,7 @@ load_impres_packages_into_env <- function(env, packages = impres_required_packag
 
 #' Source packaged IMPRES helper scripts without attaching packages globally
 #' @keywords internal
+#' @noRd
 source_impres_extdata_files <- function(env) {
   files <- c(
     "ImmRes_output.R",
@@ -1549,6 +1607,7 @@ source_impres_extdata_files <- function(env) {
 
 #' Load IMPRES helpers into a private environment
 #' @keywords internal
+#' @noRd
 load_impres_extdata_helpers <- function(parent = globalenv()) {
   env <- new.env(parent = parent)
   load_impres_packages_into_env(env)

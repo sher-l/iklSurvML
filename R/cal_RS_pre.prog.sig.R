@@ -8,7 +8,6 @@
 #' @return A list of the risk score of the signature for each cohort you provide.
 #' @export
 #'
-#' @examples
 cal_RS_pre.prog.sig <- function(use_your_own_collected_sig, # 是否使用您自己收集的signature， T or F
                                 collected_sig_table, # 列名分别为
                                 # "model"  "PMID"   "Cancer" "Author" "Coef"   "symbol"

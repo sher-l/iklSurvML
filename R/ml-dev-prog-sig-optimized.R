@@ -235,6 +235,7 @@ ML.Dev.Prog.Sig.Fast <- function(train_data,
 
 #' Helper function to add model result
 #' @keywords internal
+#' @noRd
 add_model_result <- function(result, ml.res, riskscore, rs, fit, model_name, list_train_vali_Data) {
   rs <- return_id_to_rs(rs, list_train_vali_Data)
   cc <- calculate_cindex_result(rs, model_name)
@@ -246,6 +247,7 @@ add_model_result <- function(result, ml.res, riskscore, rs, fit, model_name, lis
 
 #' Fixed 117 all-mode combinations - Optimized
 #' @keywords internal
+#' @noRd
 run_all_algorithms_128 <- function(est_dd, train_data, val_dd_list,
                                     list_train_vali_Data, pre_var,
                                     rf_nodesize, seed, cores_for_parallel,
@@ -644,6 +646,7 @@ run_all_algorithms_128 <- function(est_dd, train_data, val_dd_list,
 
 #' Optimized double algorithm runner
 #' @keywords internal
+#' @noRd
 run_double_algorithm_optimized <- function(est_dd, train_data, val_dd_list,
                                             list_train_vali_Data, pre_var,
                                             double_ml1, double_ml2, rf_nodesize, seed,

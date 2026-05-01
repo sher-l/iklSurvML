@@ -16,6 +16,7 @@
 #' @param cores_for_parallel Cores for parallel processing
 #' @return List with result, ml.res, riskscore
 #' @keywords internal
+#' @noRd
 run_rsf_combination <- function(est_dd,
                                 train_data,
                                 val_dd_list,
@@ -138,6 +139,7 @@ run_rsf_combination <- function(est_dd,
 #' @param cores_for_parallel Cores for parallel processing
 #' @return List with result, ml.res, riskscore
 #' @keywords internal
+#' @noRd
 run_stepcox_combination <- function(est_dd,
                                     train_data,
                                     val_dd_list,
@@ -245,6 +247,7 @@ run_stepcox_combination <- function(est_dd,
 #' @inheritParams run_rsf_combination
 #' @return List with result, ml.res, riskscore
 #' @keywords internal
+#' @noRd
 run_coxboost_combination <- function(est_dd,
                                      train_data,
                                      val_dd_list,
@@ -352,6 +355,7 @@ run_coxboost_combination <- function(est_dd,
 #' @inheritParams run_rsf_combination
 #' @return List with result, ml.res, riskscore
 #' @keywords internal
+#' @noRd
 run_lasso_combination <- function(est_dd,
                                   train_data,
                                   val_dd_list,
@@ -474,6 +478,7 @@ run_lasso_combination <- function(est_dd,
 #' @param model_name Model name
 #' @return Data frame with ID, Cindex, Model columns
 #' @keywords internal
+#' @noRd
 calculate_cindex_result <- function(rs, model_name) {
   cc <- data.frame(
     Cindex = sapply(rs, function(x) {

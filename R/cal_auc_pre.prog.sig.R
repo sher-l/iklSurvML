@@ -10,7 +10,6 @@
 #' @return A list of the AUC results of each previous signature in each cohort you provide.
 #' @export
 #'
-#' @examples
 cal_auc_pre.prog.sig <- function(use_your_own_collected_sig, # 是否使用您自己收集的signature， T or F
                                  collected_sig_table, # 列名分别为
                                  # "model"  "PMID"   "Cancer" "Author" "Coef"   "symbol"

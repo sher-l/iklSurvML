@@ -13,7 +13,6 @@
 #' @return A list of the risk score calculated by the predictive model in each data in the data of the input matrix list.
 #' @export
 #'
-#' @examples
 cal_RS_ml_res <- function(res.by.ML.Dev.Prog.Sig = NULL, # ML.Dev.Prog.Sig, 函数计算结果
                           train_data, # ML.Dev.Prog.Sig 中的训练集
                           inputmatrix.list, # A list contain the dataframes (colnames:ID,OS.time,OS,other genes), log2(x+1)

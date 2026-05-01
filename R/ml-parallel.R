@@ -10,6 +10,7 @@
 #' the remaining task families via mclapply.
 #'
 #' @keywords internal
+#' @noRd
 split_gbm_tasks_for_fork_safety <- function(task_names) {
   sequential <- task_names[grepl("GBM", task_names, fixed = TRUE)]
   parallel <- task_names[!task_names %in% sequential]
@@ -19,6 +20,7 @@ split_gbm_tasks_for_fork_safety <- function(task_names) {
 #' Execute one model-building task with error promotion payloads
 #'
 #' @keywords internal
+#' @noRd
 execute_model_task <- function(task_name, tasks, thread_env = NULL) {
   if (!is.null(thread_env) && length(thread_env) > 0) {
     do.call(Sys.setenv, as.list(thread_env))
@@ -42,6 +44,7 @@ execute_model_task <- function(task_name, tasks, thread_env = NULL) {
 #' @param cores Number of cores (default: 12)
 #' @return Combined results
 #' @keywords internal
+#' @noRd
 run_all_algorithms_128_parallel <- function(est_dd, train_data, val_dd_list,
                                              list_train_vali_Data, pre_var,
                                              rf_nodesize, seed, cores = 12,
@@ -651,6 +654,7 @@ run_all_algorithms_128_parallel <- function(est_dd, train_data, val_dd_list,
 
 #' Stop when parallel workers report errors
 #' @keywords internal
+#' @noRd
 assert_no_parallel_task_errors <- function(results) {
   task_errors <- vapply(results, function(x) {
     if (!is.null(x$error)) x$error else NA_character_

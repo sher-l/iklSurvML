@@ -6,7 +6,6 @@
 #' @return A data frame containing the AUC of each predictive model.
 #' @export
 #'
-#' @examples
 cal.auc.category.model <- function(res.by.ML.Dev.Pred.Category.Sig, ### 函数计算结果
 	                                   cohort.for.cal # 队列要求第一列为ID,第二列为分类变量Var, 值为Y或者N, 从第三列开始为基因，表达矩阵经过了log2(x+1)处理
 ) {

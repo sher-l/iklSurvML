@@ -9,6 +9,7 @@
 
 #' Create a simple cache environment
 #' @keywords internal
+#' @noRd
 ml_cache <- new.env(parent = emptyenv())
 
 #' Get cached result or compute
@@ -16,6 +17,7 @@ ml_cache <- new.env(parent = emptyenv())
 #' @param compute_fn Function to compute if not cached
 #' @return Cached or computed result
 #' @keywords internal
+#' @noRd
 cached_compute <- function(key, compute_fn) {
   if (exists(key, envir = ml_cache)) {
     message(paste0("Using cached result for: ", key))
@@ -28,6 +30,7 @@ cached_compute <- function(key, compute_fn) {
 
 #' Clear the ML cache
 #' @keywords internal
+#' @noRd
 clear_ml_cache <- function() {
   rm(list = ls(envir = ml_cache), envir = ml_cache)
   message("ML cache cleared")
@@ -46,6 +49,7 @@ clear_ml_cache <- function() {
 #' @param cores_for_parallel Number of cores
 #' @return Combined results
 #' @keywords internal
+#' @noRd
 run_all_algorithms_parallel <- function(est_dd,
                                         train_data,
                                         val_dd_list,
@@ -154,6 +158,7 @@ run_all_algorithms_parallel <- function(est_dd,
 #' @inheritParams train_rsf
 #' @return List with fit and selected variables
 #' @keywords internal
+#' @noRd
 train_rsf_cached <- function(est_dd, rf_nodesize = 5, seed = 5201314) {
   cache_key <- paste0("rsf_", digest::digest(list(
     nrow(est_dd), ncol(est_dd), rf_nodesize, seed
@@ -173,6 +178,7 @@ train_rsf_cached <- function(est_dd, rf_nodesize = 5, seed = 5201314) {
 #' @param batch_size Number of tasks per batch
 #' @return Combined results
 #' @keywords internal
+#' @noRd
 run_in_batches <- function(tasks, batch_size = 4) {
   n_tasks <- length(tasks)
   n_batches <- ceiling(n_tasks / batch_size)
@@ -202,6 +208,7 @@ run_in_batches <- function(tasks, batch_size = 4) {
 #' @param total Total number of iterations
 #' @return Progress function
 #' @keywords internal
+#' @noRd
 create_progress_tracker <- function(total) {
   if (requireNamespace("progress", quietly = TRUE)) {
     pb <- progress::progress_bar$new(
