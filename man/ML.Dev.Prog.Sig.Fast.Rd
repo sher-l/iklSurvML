@@ -21,7 +21,8 @@ ML.Dev.Prog.Sig.Fast(
   use_parallel = FALSE,
   feature_alignment = c("strict", "intersection"),
   model_grid = "117",
-  allow_partial = FALSE
+  allow_partial = FALSE,
+  fallback_on_fast_failure = FALSE
 )
 }
 \arguments{
@@ -60,6 +61,8 @@ ML.Dev.Prog.Sig.Fast(
 \item{model_grid}{All-mode model grid to run. Only \code{"117"} is supported; retained for API compatibility and used only when \code{mode = "all"}.}
 
 \item{allow_partial}{Logical. For \code{mode = "all"}, whether to return a partial model grid when some first-stage selectors or backend models fail.}
+
+\item{fallback_on_fast_failure}{Logical. For \code{mode = "all"}, whether to retry with the resilient legacy all-mode runner after the optimized runner fails before returning results. Defaults to \code{FALSE}.}
 }
 \value{
 Same result structure as \code{\link{ML.Dev.Prog.Sig}}.

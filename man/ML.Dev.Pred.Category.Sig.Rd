@@ -12,7 +12,10 @@ ML.Dev.Pred.Category.Sig(
   seed = 5201314,
   cores_for_parallel = 12,
   positive_class = "Y",
-  feature_alignment = c("strict", "intersection")
+  feature_alignment = c("strict", "intersection"),
+  tune_profile = c("standard", "exhaustive"),
+  cv_folds = 5,
+  cv_repeats = 3
 )
 }
 \arguments{
@@ -31,6 +34,12 @@ ML.Dev.Pred.Category.Sig(
 \item{positive_class}{The class treated as the positive/event class for ROC/AUC. Defaults to \"Y\".}
 
 \item{feature_alignment}{How candidate genes are aligned across cohorts. \"strict\" requires all candidate genes to be present in every cohort; \"intersection\" uses shared genes and warns about dropped features.}
+
+\item{tune_profile}{Tuning grid size profile. \code{"standard"} uses a bounded grid suitable for routine runs; \code{"exhaustive"} restores the larger legacy grid.}
+
+\item{cv_folds}{Number of folds for repeated cross-validation. Defaults to 5.}
+
+\item{cv_repeats}{Number of repeated cross-validation rounds. Defaults to 3.}
 }
 \value{
 A list containing the predictive model, the AUC, the ROC, and the candidate variables, all of which are developed by each single algorithm.

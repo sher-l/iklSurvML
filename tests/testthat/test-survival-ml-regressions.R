@@ -12,7 +12,11 @@ make_survival_smoke_data <- function(n = 30, p = 5, prefix = "S") {
 }
 
 make_mock_all_mode_result <- function(n = 117, prefix = "Mock") {
-  model_names <- paste0(prefix, sprintf("%03d", seq_len(n)))
+  model_names <- if (identical(as.integer(n), 117L)) {
+    iklSurvML:::all_mode_model_names()
+  } else {
+    paste0(prefix, sprintf("%03d", seq_len(n)))
+  }
   fits <- stats::setNames(
     lapply(seq_len(n), function(i) structure(list(index = i), class = "mock_survival_fit")),
     model_names
@@ -109,7 +113,7 @@ test_that("ML.Dev.Prog.Sig.Fast all-mode defaults to the complete 117-grid resul
 
   expect_length(result$ml.res, 117)
   expect_length(result$Model.info, 117)
-  expect_equal(names(result$ml.res)[[1]], "FastMock001")
+  expect_equal(names(result$ml.res)[[1]], "RSF")
 })
 
 test_that("ML.Dev.Prog.Sig all-mode uses the fixed 117-grid result", {
@@ -136,7 +140,7 @@ test_that("ML.Dev.Prog.Sig all-mode uses the fixed 117-grid result", {
 
   expect_length(result$ml.res, 117)
   expect_length(result$Model.info, 117)
-  expect_equal(names(result$ml.res)[[1]], "Grid117Mock001")
+  expect_equal(names(result$ml.res)[[1]], "RSF")
 })
 
 test_that("all-mode entry points reject partial grids unless explicitly allowed", {
@@ -986,4 +990,151 @@ test_that("all-mode partial results require an explicit opt-in", {
       context = "test all-mode"
     )
   )
+})
+
+test_that("legacy and Fast double-mode Enet both honor the requested alpha", {
+  skip_if_not_installed("glmnet")
+
+  set.seed(901)
+  n <- 60
+  p <- 5
+  expr <- replicate(p, stats::rnorm(n))
+  colnames(expr) <- paste0("G", seq_len(p))
+  linpred <- expr[, 1] - 0.7 * expr[, 2] + 0.4 * expr[, 3]
+  train_data <- data.frame(
+    ID = paste0("EN", seq_len(n)),
+    OS.time = pmax(1, round(900 - 100 * linpred + stats::rnorm(n, sd = 25))),
+    OS = rep(1, n),
+    expr,
+    check.names = FALSE
+  )
+  expected_name <- "StepCox[both] + Enet[α=0.3]"
+
+  legacy <- iklSurvML::ML.Dev.Prog.Sig(
+    train_data = train_data,
+    list_train_vali_Data = list(Train = train_data),
+    candidate_genes = paste0("G", seq_len(p)),
+    unicox.filter.for.candi = FALSE,
+    mode = "double",
+    double_ml1 = "StepCox",
+    double_ml2 = "Enet",
+    alpha_for_Enet = 0.3,
+    direction_for_stepcox = "both",
+    cores_for_parallel = 1
+  )
+  fast <- iklSurvML::ML.Dev.Prog.Sig.Fast(
+    train_data = train_data,
+    list_train_vali_Data = list(Train = train_data),
+    candidate_genes = paste0("G", seq_len(p)),
+    unicox.filter.for.candi = FALSE,
+    mode = "double",
+    double_ml1 = "StepCox",
+    double_ml2 = "Enet",
+    alpha_for_Enet = 0.3,
+    direction_for_stepcox = "both",
+    use_parallel = FALSE
+  )
+
+  expect_equal(names(legacy$ml.res), expected_name)
+  expect_equal(names(fast$ml.res), expected_name)
+})
+
+test_that("all-mode model names are defined by a declarative task table", {
+  tasks <- iklSurvML:::survival_all_mode_task_table()
+  names_from_tasks <- iklSurvML:::all_mode_model_names()
+
+  expect_equal(nrow(tasks), 117L)
+  expect_equal(length(names_from_tasks), 117L)
+  expect_equal(tasks$model_name, names_from_tasks)
+  expect_true(all(c("RSF", "StepCox[forward] + RSF", "RSF + CoxBoost", "Lasso + survival-SVM") %in% names_from_tasks))
+  expect_false(any(grepl("RSF \\+ RSF|CoxBoost \\+ RSF|Lasso \\+ Enet|Lasso \\+ Ridge", names_from_tasks)))
+})
+
+test_that("Fast all-mode failure is explicit unless fallback is requested", {
+  train_data <- make_survival_smoke_data(n = 12, p = 4, prefix = "FB")
+
+  testthat::local_mocked_bindings(
+    run_all_algorithms_128 = function(...) stop("optimized path broke", call. = FALSE),
+    run_all_algorithms = function(...) make_mock_all_mode_result(117L, "FallbackMock"),
+    .package = "iklSurvML"
+  )
+
+  expect_error(
+    iklSurvML::ML.Dev.Prog.Sig.Fast(
+      train_data = train_data,
+      list_train_vali_Data = list(Train = train_data),
+      candidate_genes = paste0("G", seq_len(4)),
+      unicox.filter.for.candi = FALSE,
+      mode = "all",
+      use_parallel = FALSE
+    ),
+    "Fast all-mode failed"
+  )
+
+  result <- NULL
+  expect_warning({
+    result <- iklSurvML::ML.Dev.Prog.Sig.Fast(
+      train_data = train_data,
+      list_train_vali_Data = list(Train = train_data),
+      candidate_genes = paste0("G", seq_len(4)),
+      unicox.filter.for.candi = FALSE,
+      mode = "all",
+      use_parallel = FALSE,
+      fallback_on_fast_failure = TRUE
+    )
+  }, "falling back")
+
+  expect_length(result$ml.res, 117)
+  expect_equal(result$Fast.fallback$original_error, "optimized path broke")
+})
+
+test_that("GBM training records how the tree count was selected", {
+  skip_if_not_installed("gbm")
+
+  train_data <- make_survival_smoke_data(n = 30, p = 4, prefix = "GB")
+  fit <- suppressMessages(iklSurvML:::train_gbm(train_data[, -1], seed = 5201314, cores_for_parallel = 1))
+
+  expect_true(fit$selection_method %in% c("OOB", "train.error", "last"))
+  expect_true(is.numeric(fit$best) && length(fit$best) == 1L && fit$best >= 1)
+})
+
+test_that("previous signature survival helpers reject unsafe expression coercion and NA imputation", {
+  sig <- data.frame(
+    model = "MockSig",
+    PMID = "0",
+    Cancer = "Mock",
+    Author = "Mock",
+    Coef = 1,
+    symbol = "G1",
+    stringsAsFactors = FALSE
+  )
+  cohort <- data.frame(
+    ID = paste0("S", seq_len(4)),
+    OS.time = seq(100, 400, by = 100),
+    OS = c(1, 0, 1, 0),
+    G1 = c("1", "2", "bad", "4"),
+    check.names = FALSE
+  )
+
+  expect_error(
+    iklSurvML::cal_RS_pre.prog.sig(TRUE, sig, NULL, list(Cohort = cohort)),
+    "contains non-numeric values"
+  )
+
+  cohort$G1 <- c(1, 2, NA, 4)
+  expect_error(
+    iklSurvML::cal_cindex_pre.prog.sig(TRUE, sig, NULL, list(Cohort = cohort)),
+    "NA signature expression values"
+  )
+  expect_error(
+    iklSurvML::cal_auc_pre.prog.sig(TRUE, sig, NULL, list(Cohort = cohort), AUC_time = 0.5),
+    "NA signature expression values"
+  )
+})
+
+test_that("core-feature screening iteration count is configurable", {
+  expect_equal(formals(iklSurvML::ML.Corefeature.Prog.Screen)$iter_times, 1000)
+  body_text <- paste(deparse(iklSurvML::ML.Corefeature.Prog.Screen), collapse = "\n")
+  expect_false(grepl("iter.times <- 1000", body_text, fixed = TRUE))
+  expect_true(grepl("iter_times", body_text, fixed = TRUE))
 })

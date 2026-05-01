@@ -63,45 +63,11 @@ cal_cindex_pre.prog.sig <- function(use_your_own_collected_sig, # 是否使用�
     return(rs.table.list)
   }
 
-  list_input_data <- prepare_previous_signature_input_data(
+  list_input_data <- preprocess_previous_signature_survival_data(
     list_input_data,
     common_feature,
     context = "cal_cindex_pre.prog.sig"
   )
-
-
-
-
-  list_input_data <- lapply(list_input_data, function(x) {
-    x[, -c(1:3)] <- apply(x[, -c(1:3)], 2, as.numeric)
-    return(x)
-  })
-
-  list_input_data <- lapply(list_input_data, function(x) {
-    x[, c(2:3)] <- apply(x[, c(2:3)], 2, as.numeric)
-    return(x)
-  })
-
-  list_input_data <- lapply(list_input_data, function(x) {
-    x <- x[!is.na(x$OS.time) & !is.na(x$OS), ]
-    return(x)
-  })
-
-  list_input_data <- lapply(list_input_data, function(x) {
-    x <- x[x$OS.time > 0, ]
-    return(x)
-  })
-  # use the mean replace the NA
-  list_input_data <- lapply(list_input_data, function(x) {
-    x[, -c(1:3)] <- apply(x[, -c(1:3)], 2, function(x) {
-      x[is.na(x)] <- mean(x, na.rm = T)
-      return(x)
-    })
-
-
-    return(x)
-  })
-
 
 
 

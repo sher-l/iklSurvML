@@ -785,14 +785,17 @@ train_gbm <- function(est_dd, seed = 5201314, cores_for_parallel = 6) {
   )
 
   # Find optimal number of trees without invoking gbmCrossValPredictions.
+  selection_method <- "OOB"
   best <- tryCatch(
     suppressMessages(suppressWarnings(gbm::gbm.perf(fit, method = "OOB", plot.it = FALSE))),
     error = function(e) NA_integer_
   )
   if (length(best) != 1 || is.na(best) || best < 1) {
+    selection_method <- "train.error"
     best <- which.min(fit$train.error)
   }
   if (length(best) != 1 || is.na(best) || best < 1) {
+    selection_method <- "last"
     best <- n_trees
   }
   best <- as.integer(best)
@@ -813,8 +816,9 @@ train_gbm <- function(est_dd, seed = 5201314, cores_for_parallel = 6) {
 
   features <- colnames(est_dd)[-c(1, 2)]
   attr(fit, "iklsurvml_features") <- features
-  out <- list(fit = fit, best = best)
+  out <- list(fit = fit, best = best, selection_method = selection_method)
   attr(out, "iklsurvml_features") <- features
+  attr(out, "iklsurvml_gbm_selection_method") <- selection_method
   return(out)
 }
 

@@ -22,6 +22,17 @@ cal.roc.category.model <- function(res.by.ML.Dev.Pred.Category.Sig, ### 函数�
   cohort.for.cal <- normalize_ml_data_columns(cohort.for.cal, "cohort.for.cal")
   sig <- normalize_ml_feature_names(sig)
 
+  required_columns <- c("ID", "Var", sig)
+  missing_columns <- setdiff(required_columns, colnames(cohort.for.cal))
+  if (length(missing_columns) > 0L) {
+    stop(paste0(
+      "cohort.for.cal is missing required columns: ",
+      paste(missing_columns, collapse = ", ")
+    ), call. = FALSE)
+  }
+  if (!identical(colnames(cohort.for.cal)[1:2], c("ID", "Var"))) {
+    stop("cohort.for.cal first 2 columns must be ID, Var", call. = FALSE)
+  }
 
   if (all(is.element(sig, colnames(cohort.for.cal))) & identical(colnames(cohort.for.cal)[1:2], c("ID", "Var"))) {
     recipe <- res.by.ML.Dev.Pred.Category.Sig$Preprocess.recipe
@@ -72,6 +83,6 @@ cal.roc.category.model <- function(res.by.ML.Dev.Pred.Category.Sig, ### 函数�
 
     return(roc)
   } else {
-    print("Please provide the correct parameters and the cohorts with correct format")
+    stop("Please provide the correct parameters and the cohorts with correct format", call. = FALSE)
   }
 }

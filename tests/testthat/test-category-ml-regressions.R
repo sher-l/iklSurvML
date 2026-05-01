@@ -211,3 +211,30 @@ test_that("exported category AUC/ROC helpers accept caret train models", {
   expect_equal(rownames(auc), "rf")
   expect_equal(names(roc), "rf")
 })
+
+test_that("category tuning defaults avoid the exhaustive SVM grid", {
+  standard <- iklSurvML:::category_tune_grid(n_features = 6)
+  exhaustive <- iklSurvML:::category_tune_grid(n_features = 6, tune_profile = "exhaustive")
+
+  expect_lt(nrow(standard$svmRadialWeights), nrow(exhaustive$svmRadialWeights))
+  expect_lte(nrow(standard$svmRadialWeights), 27)
+  expect_equal(nrow(exhaustive$svmRadialWeights), 175)
+})
+
+test_that("exported category AUC/ROC helpers fail clearly for missing features", {
+  result <- list(
+    model = list(rf = structure(list(), class = "mock")),
+    sig.gene = c("G1", "MissingGene"),
+    positive_class = "Y"
+  )
+  cohort <- make_category_smoke_data(n = 10, p = 2, prefix = "MISS")
+
+  expect_error(
+    iklSurvML::cal.auc.category.model(result, cohort),
+    "missing required columns"
+  )
+  expect_error(
+    iklSurvML::cal.roc.category.model(result, cohort),
+    "missing required columns"
+  )
+})

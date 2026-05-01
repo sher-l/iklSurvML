@@ -143,7 +143,7 @@ run_all_algorithms_128_parallel <- function(est_dd, train_data, val_dd_list,
   # ---- Phase 2A: Single models (20 total; RSF already materialized above) ----
 
   # Enet (9)
-  for (alpha in seq(0.1, 0.9, 0.1)) {
+  for (alpha in all_mode_alpha_values()) {
     local({
     nm <- paste0("Enet[\u03b1=", alpha, "]")
     a <- alpha  # Capture
@@ -223,7 +223,7 @@ run_all_algorithms_128_parallel <- function(est_dd, train_data, val_dd_list,
     }
 
     # RSF + Enet (9)
-    for (alpha in seq(0.1, 0.9, 0.1)) {
+    for (alpha in all_mode_alpha_values()) {
       local({
       nm <- paste0("RSF + Enet[\u03b1=", alpha, "]")
       a <- alpha
@@ -317,7 +317,7 @@ run_all_algorithms_128_parallel <- function(est_dd, train_data, val_dd_list,
         list(name = paste0("StepCox[", d, "] + CoxBoost"), rs = rs, fit = fit)
       }
 
-      for (alpha in seq(0.1, 0.9, 0.1)) {
+      for (alpha in all_mode_alpha_values()) {
           local({
         nm <- paste0(prefix, " + Enet[\u03b1=", alpha, "]")
         a <- alpha
@@ -374,7 +374,7 @@ run_all_algorithms_128_parallel <- function(est_dd, train_data, val_dd_list,
     val_coxboost <- lapply(list_train_vali_Data, function(x) x[, c("OS.time", "OS", coxboost_vars)])
 
     # CoxBoost + Enet (9)
-    for (alpha in seq(0.1, 0.9, 0.1)) {
+    for (alpha in all_mode_alpha_values()) {
       local({
       nm <- paste0("CoxBoost + Enet[\u03b1=", alpha, "]")
       a <- alpha

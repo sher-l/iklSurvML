@@ -8,6 +8,8 @@
 #' @param seed  The seed. You can set it as any number. For example, 5201314.
 #' @param single_ml The one method from the seven methods including "RSF", "Enet", "Xgboost", "SVM-REF", "Lasso", "CoxBoost", "StepCox".
 #' @param nodesize The node size parameter for the RSF method. The default is 5. You can try another positive integer. For example, 10,15,20, etc. 
+#' @param iter_times Number of repeated seeds used by repeated Lasso/Enet
+#'   feature screening. Defaults to 1000 to preserve the legacy behavior.
 #'
 #' @return A data frame including the methods and the core genes screened by the corresponding algorithm.
 #' @export
@@ -18,7 +20,8 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
                                        mode = NULL, # all, single,all_without_SVM
                                        seed = NULL,
                                        single_ml = NULL, # c("RSF", "Enet", "Xgboost","SVM-REF","Lasso","CoxBoost","StepCox")
-                                       nodesize = 5) {
+                                       nodesize = 5,
+                                       iter_times = 1000) {
   ### laoding the function ####
 
   if (T) {
@@ -486,7 +489,10 @@ ML.Corefeature.Prog.Screen <- function(InputMatrix, ### ???ID,???OS.time, (day),
 
   rf_nodesize <- nodesize
   seed <- seed
-  iter.times <- 1000
+  if (length(iter_times) != 1L || is.na(iter_times) || iter_times < 1L) {
+    stop("iter_times must be a positive scalar integer", call. = FALSE)
+  }
+  iter.times <- as.integer(iter_times)
   # Checking data feasibility
   message("--- check data feasibility ---")
 

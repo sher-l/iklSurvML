@@ -57,7 +57,8 @@ run_rsf_combination <- function(est_dd,
     model_name <- "RSF + CoxBoost"
     ml.res[[model_name]] <- fit
   } else if (second_algo == "Enet") {
-    for (alpha in seq(0.1, 0.9, 0.1)) {
+    alpha_values <- if (is.null(alpha_for_enet)) all_mode_alpha_values() else alpha_for_enet
+    for (alpha in alpha_values) {
       fit <- train_enet(est_dd2, rid, alpha, seed)
       rs <- calculate_risk_scores(val_dd_list2, function(x) predict_enet(fit, x, rid))
       model_name <- paste0("RSF + Enet[\u03b1=", alpha, "]")
@@ -74,7 +75,7 @@ run_rsf_combination <- function(est_dd,
     best <- gbm_result$best
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_gbm(fit, best, x))
     model_name <- "RSF + GBM"
-    ml.res[[model_name]] <- list(fit = fit, best = best)
+    ml.res[[model_name]] <- gbm_result
   } else if (second_algo == "Lasso") {
     fit <- train_lasso(est_dd2, rid, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_lasso(fit, x, rid))
@@ -178,7 +179,8 @@ run_stepcox_combination <- function(est_dd,
     model_name <- paste0("StepCox[", direction, "] + CoxBoost")
     ml.res[[model_name]] <- fit
   } else if (second_algo == "Enet") {
-    for (alpha in seq(0.1, 0.9, 0.1)) {
+    alpha_values <- if (is.null(alpha_for_enet)) all_mode_alpha_values() else alpha_for_enet
+    for (alpha in alpha_values) {
       fit <- train_enet(est_dd2, rid, alpha, seed)
       rs <- calculate_risk_scores(val_dd_list2, function(x) predict_enet(fit, x, rid))
       model_name <- paste0("StepCox[", direction, "] + Enet[\u03b1=", alpha, "]")
@@ -195,7 +197,7 @@ run_stepcox_combination <- function(est_dd,
     best <- gbm_result$best
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_gbm(fit, best, x))
     model_name <- paste0("StepCox[", direction, "] + GBM")
-    ml.res[[model_name]] <- list(fit = fit, best = best)
+    ml.res[[model_name]] <- gbm_result
   } else if (second_algo == "Lasso") {
     fit <- train_lasso(est_dd2, rid, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_lasso(fit, x, rid))
@@ -249,6 +251,7 @@ run_coxboost_combination <- function(est_dd,
                                      list_train_vali_Data,
 	                                     seed = 5201314,
 	                                     second_algo,
+	                                     alpha_for_enet = NULL,
 	                                     direction_for_stepcox = "both",
 	                                     rf_nodesize = 5,
 	                                     cores_for_parallel = 6) {
@@ -278,7 +281,8 @@ run_coxboost_combination <- function(est_dd,
   })
 
   if (second_algo == "Enet") {
-    for (alpha in seq(0.1, 0.9, 0.1)) {
+    alpha_values <- if (is.null(alpha_for_enet)) all_mode_alpha_values() else alpha_for_enet
+    for (alpha in alpha_values) {
       fit <- train_enet(est_dd2, rid, alpha, seed)
       rs <- calculate_risk_scores(val_dd_list2, function(x) predict_enet(fit, x, rid))
       model_name <- paste0("CoxBoost + Enet[\u03b1=", alpha, "]")
@@ -295,7 +299,7 @@ run_coxboost_combination <- function(est_dd,
     best <- gbm_result$best
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_gbm(fit, best, x))
     model_name <- "CoxBoost + GBM"
-    ml.res[[model_name]] <- list(fit = fit, best = best)
+    ml.res[[model_name]] <- gbm_result
   } else if (second_algo == "Lasso") {
     fit <- train_lasso(est_dd2, rid, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_lasso(fit, x, rid))
@@ -355,6 +359,7 @@ run_lasso_combination <- function(est_dd,
 	                                  pre_var,
 	                                  seed = 5201314,
 	                                  second_algo,
+	                                  alpha_for_enet = NULL,
 	                                  direction_for_stepcox = "both",
 	                                  rf_nodesize = 5,
 	                                  cores_for_parallel = 6) {
@@ -398,7 +403,7 @@ run_lasso_combination <- function(est_dd,
     best <- gbm_result$best
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_gbm(fit, best, x))
     model_name <- "Lasso + GBM"
-    ml.res[[model_name]] <- list(fit = fit, best = best)
+    ml.res[[model_name]] <- gbm_result
   } else if (second_algo == "plsRcox") {
     fit <- train_plsrcox(est_dd2, rid, seed)
     rs <- calculate_risk_scores(val_dd_list2, function(x) predict_plsrcox(fit, x))
@@ -427,7 +432,8 @@ run_lasso_combination <- function(est_dd,
     model_name <- "Lasso + survival-SVM"
     ml.res[[model_name]] <- fit
   } else if (second_algo == "Enet") {
-    for (alpha in seq(0.1, 0.9, 0.1)) {
+    alpha_values <- if (is.null(alpha_for_enet)) all_mode_alpha_values() else alpha_for_enet
+    for (alpha in alpha_values) {
       fit <- train_enet(est_dd2, rid, alpha, seed)
       rs <- calculate_risk_scores(val_dd_list2, function(x) predict_enet(fit, x, rid))
       model_name <- paste0("Lasso + Enet[\u03b1=", alpha, "]")

@@ -10,7 +10,8 @@ ML.Corefeature.Prog.Screen(
   mode = NULL,
   seed = NULL,
   single_ml = NULL,
-  nodesize = 5
+  nodesize = 5,
+  iter_times = 1000
 )
 }
 \arguments{
@@ -25,6 +26,8 @@ ML.Corefeature.Prog.Screen(
 \item{single_ml}{The one method from the seven methods including "RSF", "Enet", "Xgboost", "SVM-REF", "Lasso", "CoxBoost", "StepCox".}
 
 \item{nodesize}{The node size parameter for the RSF method. The default is 5. You can try another positive integer. For example, 10,15,20, etc.}
+
+\item{iter_times}{Number of repeated seeds used by repeated Lasso/Enet feature screening. Defaults to 1000 to preserve the legacy behavior.}
 }
 \value{
 A data frame including the methods and the core genes screened by the corresponding algorithm.

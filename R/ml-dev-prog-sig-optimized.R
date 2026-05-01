@@ -23,6 +23,10 @@
 #'   partial model grid when some first-stage selectors or backend models fail.
 #'   Defaults to `FALSE` so incomplete all-mode runs fail explicitly instead of
 #'   looking complete.
+#' @param fallback_on_fast_failure Logical. For `mode = "all"`, whether to
+#'   retry with the resilient legacy all-mode runner after the optimized runner
+#'   fails before returning results. Defaults to `FALSE` so optimized failures
+#'   are explicit.
 #' @return Same result structure as ML.Dev.Prog.Sig
 #' @export
 ML.Dev.Prog.Sig.Fast <- function(train_data,
@@ -42,7 +46,8 @@ ML.Dev.Prog.Sig.Fast <- function(train_data,
 	                                  use_parallel = FALSE,
 	                                  feature_alignment = c("strict", "intersection"),
 	                                  model_grid = "117",
-	                                  allow_partial = FALSE) {
+	                                  allow_partial = FALSE,
+	                                  fallback_on_fast_failure = FALSE) {
 
   # ---- Set default parameters ----
   if (is.null(alpha_for_Enet)) alpha_for_Enet <- 0.1
@@ -94,6 +99,11 @@ ML.Dev.Prog.Sig.Fast <- function(train_data,
   if (length(rf_nodesize) != 1 || is.na(rf_nodesize) ||
       length(seed) != 1 || is.na(seed)) {
     stop("nodesize and seed must be non-missing scalar values", call. = FALSE)
+  }
+  if (!is.logical(fallback_on_fast_failure) ||
+      length(fallback_on_fast_failure) != 1L ||
+      is.na(fallback_on_fast_failure)) {
+    stop("fallback_on_fast_failure must be TRUE or FALSE", call. = FALSE)
   }
   if (!identical(c("ID", "OS.time", "OS"), colnames(train_data)[1:3])) {
     stop("first 3 columns of train_data must be ID, OS.time, OS", call. = FALSE)
@@ -156,12 +166,20 @@ ML.Dev.Prog.Sig.Fast <- function(train_data,
       tryCatch(
         fast_runner(),
         error = function(e) {
+          original_error <- conditionMessage(e)
+          if (!isTRUE(fallback_on_fast_failure)) {
+            stop(paste0(
+              "Fast all-mode failed before returning model results: ",
+              original_error,
+              ". Set fallback_on_fast_failure = TRUE to retry with the resilient all-mode runner."
+            ), call. = FALSE)
+          }
           warning(paste0(
             "Fast all-mode failed before returning model results; falling back ",
             "to the resilient all-mode runner. Original error: ",
-            conditionMessage(e)
+            original_error
           ), call. = FALSE)
-          run_all_algorithms(
+          fallback <- run_all_algorithms(
             est_dd = est_dd,
             train_data = train_data,
             val_dd_list = val_dd_list,
@@ -172,6 +190,16 @@ ML.Dev.Prog.Sig.Fast <- function(train_data,
 	            cores_for_parallel = cores_for_parallel,
 	            model_grid = model_grid
 	          )
+          fallback$Fast.fallback <- list(
+            original_error = original_error,
+            fallback_runner = "run_all_algorithms",
+            optimized_runner = if (use_parallel) {
+              "run_all_algorithms_128_parallel"
+            } else {
+              "run_all_algorithms_128"
+            }
+          )
+          fallback
 	        }
 	      )
     })
@@ -271,7 +299,7 @@ run_all_algorithms_128 <- function(est_dd, train_data, val_dd_list,
   result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
   # Enet (9 alphas)
-  for (alpha in seq(0.1, 0.9, 0.1)) {
+  for (alpha in all_mode_alpha_values()) {
     fit <- train_enet(est_dd, pre_var, alpha, seed)
     rs <- calculate_risk_scores(val_dd_list, function(x) predict_enet(fit, x, pre_var))
     tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0("Enet[\u03b1=", alpha, "]"), list_train_vali_Data)
@@ -338,7 +366,7 @@ run_all_algorithms_128 <- function(est_dd, train_data, val_dd_list,
     result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
     # RSF + Enet (9)
-    for (alpha in seq(0.1, 0.9, 0.1)) {
+    for (alpha in all_mode_alpha_values()) {
       fit <- train_enet(est_dd_rsf, rsf_vars, alpha, seed)
       rs <- calculate_risk_scores(val_dd_list_rsf, function(x) predict_enet(fit, x, rsf_vars))
       tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0("RSF + Enet[\u03b1=", alpha, "]"), list_train_vali_Data)
@@ -405,7 +433,7 @@ run_all_algorithms_128 <- function(est_dd, train_data, val_dd_list,
       result <- tmp$result; ml.res <- tmp$ml.res; riskscore <- tmp$riskscore
 
       # StepCox + Enet (9)
-      for (alpha in seq(0.1, 0.9, 0.1)) {
+      for (alpha in all_mode_alpha_values()) {
         fit <- train_enet(est_dd_sc, sc_vars, alpha, seed)
         rs <- calculate_risk_scores(val_dd_list_sc, function(x) predict_enet(fit, x, sc_vars))
         tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0(prefix, " + Enet[\u03b1=", alpha, "]"), list_train_vali_Data)
@@ -466,7 +494,7 @@ run_all_algorithms_128 <- function(est_dd, train_data, val_dd_list,
     val_dd_list_coxboost <- lapply(list_train_vali_Data, function(x) x[, c("OS.time", "OS", coxboost_vars)])
 
     # CoxBoost + Enet (9)
-    for (alpha in seq(0.1, 0.9, 0.1)) {
+    for (alpha in all_mode_alpha_values()) {
       fit <- train_enet(est_dd_coxboost, coxboost_vars, alpha, seed)
       rs <- calculate_risk_scores(val_dd_list_coxboost, function(x) predict_enet(fit, x, coxboost_vars))
       tmp <- add_model_result(result, ml.res, riskscore, rs, fit, paste0("CoxBoost + Enet[\u03b1=", alpha, "]"), list_train_vali_Data)

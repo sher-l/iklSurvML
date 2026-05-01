@@ -13,6 +13,11 @@
 #'   "strict" (default) requires all candidate genes to be present in every
 #'   training/validation cohort. "intersection" preserves the legacy behavior
 #'   of training only on genes shared by all cohorts, with a warning for drops.
+#' @param tune_profile Tuning grid size profile. "standard" (default) uses a
+#'   bounded grid suitable for routine runs; "exhaustive" restores the larger
+#'   legacy grid.
+#' @param cv_folds Number of folds for repeated cross-validation. Defaults to 5.
+#' @param cv_repeats Number of repeated cross-validation rounds. Defaults to 3.
 #'
 #' @return A list containing the predictive model, the AUC, the ROC, and the candidate variables, all of which are developed by each single algorithm.
 #'
@@ -114,7 +119,10 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
                                      seed = 5201314, # 5201314
                                      cores_for_parallel = 12, #
                                      positive_class = "Y",
-                                     feature_alignment = c("strict", "intersection")
+                                     feature_alignment = c("strict", "intersection"),
+                                     tune_profile = c("standard", "exhaustive"),
+                                     cv_folds = 5,
+                                     cv_repeats = 3
 ) {
   ###### loading the function #######
 
@@ -123,6 +131,15 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
   class_levels <- category_class_levels(positive_class)
   negative_class <- setdiff(c("Y", "N"), positive_class)
   feature_alignment <- match.arg(feature_alignment)
+  tune_profile <- match.arg(tune_profile)
+  if (length(cv_folds) != 1L || is.na(cv_folds) || cv_folds < 2L) {
+    stop("cv_folds must be a scalar integer >= 2", call. = FALSE)
+  }
+  if (length(cv_repeats) != 1L || is.na(cv_repeats) || cv_repeats < 1L) {
+    stop("cv_repeats must be a positive scalar integer", call. = FALSE)
+  }
+  cv_folds <- as.integer(cv_folds)
+  cv_repeats <- as.integer(cv_repeats)
 
   model.Dev <- function(training, method, sig) {
     training <- training[, colnames(training) %in% c("Var", sig)]
@@ -137,7 +154,7 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
     #' cancerclass': cancerclass
 
     # Grid search for parameter tuning
-    Grid <- category_tune_grid(n_features = length(sig))
+    Grid <- category_tune_grid(n_features = length(sig), tune_profile = tune_profile)
     TuneLength <- list(
       nb = nrow(Grid[["nb"]]),
       svmRadialWeights = nrow(Grid[["svmRadialWeights"]]),
@@ -155,8 +172,8 @@ ML.Dev.Pred.Category.Sig <- function(train_data, # cohort data used for training
         predictor <- cancerclass::fit(Sig.Exp.train, method = "welch.test")
         model.tune <- predictor
       } else {
-        f <- 5 # f folds resampling
-        r <- 10 # r repeats
+        f <- cv_folds # f folds resampling
+        r <- cv_repeats # r repeats
         n <- f * r
 
         # sets random seeds for parallel running for each single resampling f-folds and r-repeats cross-validation

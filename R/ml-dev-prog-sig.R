@@ -405,7 +405,7 @@ run_all_algorithms <- function(est_dd,
 
   # ---- 2. Enet ----
   message("--- 2. Enet ---")
-  for (alpha in seq(0.1, 0.9, 0.1)) {
+  for (alpha in all_mode_alpha_values()) {
     tryCatch({
       message(paste0("--- 2. Enet[\u03b1=", alpha, "] ---"))
       set.seed(seed)
@@ -560,7 +560,7 @@ run_all_algorithms <- function(est_dd,
     rs <- return_id_to_rs(rs, list_train_vali_Data)
     cc <- calculate_cindex_result(rs, "GBM")
     result <- rbind(result, cc)
-    ml.res[["GBM"]] <- list(fit = fit, best = best)
+    ml.res[["GBM"]] <- gbm_result
     riskscore[["GBM"]] <- rs
   }, error = function(e) record_model_error("GBM", e))
 
@@ -765,7 +765,7 @@ run_single_algorithm <- function(est_dd,
   if (single_ml == "SuperPC") {
     ml.res[[model_name]] <- fit
   } else if (single_ml == "GBM") {
-    ml.res[[model_name]] <- list(fit = fit, best = best)
+    ml.res[[model_name]] <- gbm_result
   } else {
     ml.res[[model_name]] <- fit
   }
@@ -835,6 +835,7 @@ run_double_algorithm <- function(est_dd,
 	      direction = direction_for_stepcox,
 	      seed = seed,
 	      second_algo = double_ml2,
+	      alpha_for_enet = alpha_for_enet,
 	      rf_nodesize = rf_nodesize,
 	      cores_for_parallel = cores_for_parallel
 	    )
@@ -846,6 +847,7 @@ run_double_algorithm <- function(est_dd,
       list_train_vali_Data = list_train_vali_Data,
 	      seed = seed,
 	      second_algo = double_ml2,
+	      alpha_for_enet = alpha_for_enet,
 	      direction_for_stepcox = direction_for_stepcox,
 	      rf_nodesize = rf_nodesize,
 	      cores_for_parallel = cores_for_parallel
@@ -859,6 +861,7 @@ run_double_algorithm <- function(est_dd,
 	      pre_var = pre_var,
 	      seed = seed,
 	      second_algo = double_ml2,
+	      alpha_for_enet = alpha_for_enet,
 	      direction_for_stepcox = direction_for_stepcox,
 	      rf_nodesize = rf_nodesize,
 	      cores_for_parallel = cores_for_parallel

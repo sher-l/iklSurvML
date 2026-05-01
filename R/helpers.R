@@ -271,13 +271,6 @@ normalize_all_mode_model_grid <- function(model_grid = "117") {
   model_grid
 }
 
-#' Return the advertised all-mode model count for the fixed grid
-#' @keywords internal
-all_mode_model_grid_size <- function(model_grid = "117") {
-  normalize_all_mode_model_grid(model_grid)
-  117L
-}
-
 #' Return StepCox directions used as first-stage selectors in all mode
 #' @keywords internal
 all_mode_stepcox_selector_dirs <- function(model_grid = "117") {
@@ -297,6 +290,140 @@ all_mode_coxboost_second_stage_algorithms <- function(model_grid = "117") {
 all_mode_lasso_second_stage_algorithms <- function(model_grid = "117") {
   normalize_all_mode_model_grid(model_grid)
   c("CoxBoost", "GBM", "plsRcox", "RSF", "StepCox", "SuperPC", "survivalsvm")
+}
+
+#' Return the Enet alpha values expanded by all-mode grids
+#' @keywords internal
+all_mode_alpha_values <- function() {
+  seq(0.1, 0.9, by = 0.1)
+}
+
+#' Format one survival ML stage for model names
+#' @keywords internal
+format_survival_model_stage <- function(algorithm, parameter = NA_character_) {
+  algorithm <- normalize_survival_ml_name(algorithm)
+  if (identical(algorithm, "Enet")) {
+    return(paste0("Enet[\u03b1=", parameter, "]"))
+  }
+  if (identical(algorithm, "StepCox")) {
+    return(paste0("StepCox[", parameter, "]"))
+  }
+  display_survival_ml_name(algorithm)
+}
+
+#' Declarative fixed all-mode survival ML task table
+#'
+#' This table is the source of truth for the advertised 117-model grid.  Runner
+#' implementations may still choose sequential, cached, or forked execution, but
+#' completion checks compare their materialized model names against this table so
+#' duplicated runner code cannot silently drift.
+#' @keywords internal
+survival_all_mode_task_table <- function(model_grid = "117") {
+  normalize_all_mode_model_grid(model_grid)
+  tasks <- list()
+
+  add_task <- function(selector = NA_character_,
+                       selector_param = NA_character_,
+                       learner,
+                       learner_param = NA_character_,
+                       phase) {
+    learner_name <- format_survival_model_stage(learner, learner_param)
+    model_name <- learner_name
+    if (!is.na(selector)) {
+      model_name <- paste(
+        format_survival_model_stage(selector, selector_param),
+        learner_name,
+        sep = " + "
+      )
+    }
+    tasks[[length(tasks) + 1L]] <<- data.frame(
+      phase = phase,
+      selector = selector,
+      selector_param = selector_param,
+      learner = normalize_survival_ml_name(learner),
+      learner_param = learner_param,
+      model_name = model_name,
+      stringsAsFactors = FALSE
+    )
+  }
+
+  add_task(learner = "RSF", phase = "single")
+  for (alpha in all_mode_alpha_values()) {
+    add_task(learner = "Enet", learner_param = as.character(alpha), phase = "single")
+  }
+  for (direction in c("both", "backward", "forward")) {
+    add_task(learner = "StepCox", learner_param = direction, phase = "single")
+  }
+  for (learner in c("CoxBoost", "plsRcox", "SuperPC", "GBM", "survivalsvm", "Ridge", "Lasso")) {
+    add_task(learner = learner, phase = "single")
+  }
+
+  add_task(selector = "RSF", learner = "CoxBoost", phase = "RSF")
+  for (alpha in all_mode_alpha_values()) {
+    add_task(selector = "RSF", learner = "Enet",
+             learner_param = as.character(alpha), phase = "RSF")
+  }
+  for (learner in c("GBM", "Lasso", "plsRcox", "Ridge", "SuperPC", "survivalsvm")) {
+    add_task(selector = "RSF", learner = learner, phase = "RSF")
+  }
+  for (direction in c("both", "backward", "forward")) {
+    add_task(selector = "RSF", learner = "StepCox",
+             learner_param = direction, phase = "RSF")
+  }
+
+  for (selector_direction in all_mode_stepcox_selector_dirs(model_grid)) {
+    add_task(selector = "StepCox", selector_param = selector_direction,
+             learner = "CoxBoost", phase = "StepCox")
+    for (alpha in all_mode_alpha_values()) {
+      add_task(selector = "StepCox", selector_param = selector_direction,
+               learner = "Enet", learner_param = as.character(alpha),
+               phase = "StepCox")
+    }
+    for (learner in c("GBM", "Lasso", "plsRcox", "Ridge", "RSF", "SuperPC", "survivalsvm")) {
+      add_task(selector = "StepCox", selector_param = selector_direction,
+               learner = learner, phase = "StepCox")
+    }
+  }
+
+  for (alpha in all_mode_alpha_values()) {
+    add_task(selector = "CoxBoost", learner = "Enet",
+             learner_param = as.character(alpha), phase = "CoxBoost")
+  }
+  for (learner in c("GBM", "Lasso", "plsRcox", "Ridge")) {
+    add_task(selector = "CoxBoost", learner = learner, phase = "CoxBoost")
+  }
+  for (direction in c("both", "backward", "forward")) {
+    add_task(selector = "CoxBoost", learner = "StepCox",
+             learner_param = direction, phase = "CoxBoost")
+  }
+  for (learner in c("SuperPC", "survivalsvm")) {
+    add_task(selector = "CoxBoost", learner = learner, phase = "CoxBoost")
+  }
+
+  for (learner in c("CoxBoost", "GBM", "plsRcox", "RSF")) {
+    add_task(selector = "Lasso", learner = learner, phase = "Lasso")
+  }
+  for (direction in c("both", "backward", "forward")) {
+    add_task(selector = "Lasso", learner = "StepCox",
+             learner_param = direction, phase = "Lasso")
+  }
+  for (learner in c("SuperPC", "survivalsvm")) {
+    add_task(selector = "Lasso", learner = learner, phase = "Lasso")
+  }
+
+  do.call(rbind, tasks)
+}
+
+#' Return the advertised all-mode model count for the fixed grid
+#' @keywords internal
+all_mode_model_grid_size <- function(model_grid = "117") {
+  nrow(survival_all_mode_task_table(model_grid))
+}
+
+#' Return all expected all-mode model names in deterministic order
+#' @keywords internal
+all_mode_model_names <- function(model_grid = "117") {
+  survival_all_mode_task_table(model_grid)$model_name
 }
 
 #' Warn when an all-mode run cannot materialize the full headline model grid
@@ -358,6 +485,33 @@ assert_complete_all_mode_result <- function(result,
       " did not complete the advertised model grid (",
       paste(details, collapse = " | "),
       "). Set allow_partial = TRUE to return partial results explicitly."
+    ), call. = FALSE)
+  }
+
+  actual_names <- names(result$ml.res)
+  expected_names <- all_mode_model_names()
+  duplicate_names <- unique(actual_names[duplicated(actual_names)])
+  missing_names <- setdiff(expected_names, actual_names)
+  unexpected_names <- setdiff(actual_names, expected_names)
+  if (length(duplicate_names) > 0L ||
+      length(missing_names) > 0L ||
+      length(unexpected_names) > 0L) {
+    details <- c(
+      if (length(duplicate_names) > 0L) {
+        paste0("duplicate names: ", paste(duplicate_names, collapse = ", "))
+      },
+      if (length(missing_names) > 0L) {
+        paste0("missing names: ", paste(missing_names, collapse = ", "))
+      },
+      if (length(unexpected_names) > 0L) {
+        paste0("unexpected names: ", paste(unexpected_names, collapse = ", "))
+      }
+    )
+    stop(paste0(
+      context,
+      " materialized a model set that does not match the declarative 117-grid (",
+      paste(details, collapse = " | "),
+      ")."
     ), call. = FALSE)
   }
 
@@ -685,6 +839,57 @@ prepare_previous_signature_input_data <- function(list_input_data,
   out
 }
 
+#' Strictly preprocess cohorts used by previous-signature survival helpers
+#'
+#' Previous-signature scores are fixed published formulas, so missing expression
+#' values should not be cohort-wise mean-imputed or silently re-encoded.  Reject
+#' unsafe inputs and require callers to provide complete numeric expression.
+#' @keywords internal
+preprocess_previous_signature_survival_data <- function(list_input_data,
+                                                        common_feature,
+                                                        context = "previous signature") {
+  list_input_data <- prepare_previous_signature_input_data(
+    list_input_data,
+    common_feature,
+    context = context
+  )
+  feature_names <- common_feature[-c(1:3)]
+
+  data_names <- names(list_input_data)
+  if (is.null(data_names)) {
+    data_names <- as.character(seq_along(list_input_data))
+  }
+  out <- lapply(data_names, function(nm) {
+    label <- paste0(context, " dataset '", nm, "'")
+    x <- list_input_data[[nm]]
+    x <- coerce_numeric_columns(x, c("OS.time", "OS", feature_names), label)
+
+    n_before <- nrow(x)
+    x <- x[!is.na(x$OS.time) & !is.na(x$OS), , drop = FALSE]
+    x <- x[x$OS.time > 0, , drop = FALSE]
+    n_removed <- n_before - nrow(x)
+    if (n_removed > 0L) {
+      warning(paste0(label, ": removed ", n_removed,
+                     " rows with invalid OS.time/OS"), call. = FALSE)
+    }
+    assert_binary_survival_status(x, label)
+    assert_unique_ids(x, label)
+
+    na_count <- sum(is.na(x[, feature_names, drop = FALSE]))
+    if (na_count > 0L) {
+      stop(paste0(
+        label,
+        " contains ", na_count,
+        " NA signature expression values; previous-signature scoring does not ",
+        "impute missing expression values. Provide complete numeric data."
+      ), call. = FALSE)
+    }
+    x
+  })
+  names(out) <- data_names
+  out
+}
+
 #' Extract and score named immunotherapy signature genes
 #'
 #' This helper rejects absent genes instead of relying on positional slices after
@@ -883,12 +1088,23 @@ build_survival_model_info <- function(model_name, fit) {
     survival_model_features(model_name, fit),
     error = function(e) NULL
   )
+  diagnostics <- list()
+  if (identical(learner, "GBM") && is.list(fit)) {
+    diagnostics$gbm_selection_method <- fit$selection_method
+    diagnostics$gbm_best_trees <- fit$best
+  }
+  if (identical(learner, "plsRcox")) {
+    diagnostics$plsrcox_selected_nt <- attr(fit, "iklsurvml_selected_nt", exact = TRUE)
+    diagnostics$plsrcox_fit_nt <- attr(fit, "iklsurvml_fit_nt", exact = TRUE)
+  }
+
   list(
     model_name = model_name,
     display_name = model_name,
     pipeline = list(selector = selector, learner = learner),
     features = features,
-    risk_direction = "higher_is_worse"
+    risk_direction = "higher_is_worse",
+    diagnostics = diagnostics
   )
 }
 
@@ -996,27 +1212,47 @@ category_method_packages <- function() {
 
 #' Category ML tune grids sized to the current feature count
 #' @keywords internal
-category_tune_grid <- function(n_features) {
+category_tune_grid <- function(n_features,
+                               tune_profile = c("standard", "exhaustive")) {
+  tune_profile <- match.arg(tune_profile)
   n_features <- max(1L, as.integer(n_features))
   rf_mtry <- unique(pmax(
     1L,
     pmin(n_features, round(seq(1, n_features, length.out = min(10L, n_features))))
   ))
 
+  if (identical(tune_profile, "exhaustive")) {
+    return(list(
+      nb = expand.grid(fL = c(0, 0.5, 1, 1.5, 2.0),
+                       usekernel = TRUE,
+                       adjust = c(0.5, 0.75, 1, 1.25, 1.5)),
+      svmRadialWeights = expand.grid(sigma = c(0.0005, 0.001, 0.005, 0.01, 0.05),
+                                     C = c(1, 3, 5, 10, 20),
+                                     Weight = c(0.1, 0.5, 1, 2, 3, 5, 10)),
+      rf = expand.grid(mtry = rf_mtry),
+      kknn = expand.grid(kmax = c(5, 7, 9, 11, 13),
+                         distance = 2,
+                         kernel = "optimal"),
+      adaboost = expand.grid(nIter = c(50, 100, 150, 200, 250),
+                             method = c("Adaboost.M1", "Real adaboost")),
+      LogitBoost = expand.grid(nIter = c(11, 21, 31, 41, 51, 61, 71, 81, 91, 101))
+    ))
+  }
+
   list(
-    nb = expand.grid(fL = c(0, 0.5, 1, 1.5, 2.0),
+    nb = expand.grid(fL = c(0, 1),
                      usekernel = TRUE,
-                     adjust = c(0.5, 0.75, 1, 1.25, 1.5)),
-    svmRadialWeights = expand.grid(sigma = c(0.0005, 0.001, 0.005, 0.01, 0.05),
-                                   C = c(1, 3, 5, 10, 20),
-                                   Weight = c(0.1, 0.5, 1, 2, 3, 5, 10)),
+                     adjust = c(0.75, 1, 1.25)),
+    svmRadialWeights = expand.grid(sigma = c(0.001, 0.01, 0.05),
+                                   C = c(1, 5, 10),
+                                   Weight = c(0.5, 1, 2)),
     rf = expand.grid(mtry = rf_mtry),
-    kknn = expand.grid(kmax = c(5, 7, 9, 11, 13),
+    kknn = expand.grid(kmax = c(5, 9, 13),
                        distance = 2,
                        kernel = "optimal"),
-    adaboost = expand.grid(nIter = c(50, 100, 150, 200, 250),
+    adaboost = expand.grid(nIter = c(50, 100, 150),
                            method = c("Adaboost.M1", "Real adaboost")),
-    LogitBoost = expand.grid(nIter = c(11, 21, 31, 41, 51, 61, 71, 81, 91, 101))
+    LogitBoost = expand.grid(nIter = c(21, 51, 81))
   )
 }
 
